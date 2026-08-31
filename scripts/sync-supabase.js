@@ -16,13 +16,13 @@ if (!fs.existsSync(envPath)) {
 
 const envContent = fs.readFileSync(envPath, 'utf8');
 const urlMatch = envContent.match(/NEXT_PUBLIC_SUPABASE_URL=(.*)/);
-const keyMatch = envContent.match(/NEXT_PUBLIC_SUPABASE_ANON_KEY=(.*)/);
+const keyMatch = envContent.match(/NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY=(.*)/);
 
 const supabaseUrl = urlMatch ? urlMatch[1].trim() : '';
 const supabaseKey = keyMatch ? keyMatch[1].trim() : '';
 
 if (!supabaseUrl || !supabaseKey) {
-  console.error('❌ Error: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_ANON_KEY is missing in .env');
+  console.error('❌ Error: NEXT_PUBLIC_SUPABASE_URL or NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY is missing in .env');
   process.exit(1);
 }
 

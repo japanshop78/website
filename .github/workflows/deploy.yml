@@ -42,7 +42,7 @@ jobs:
           NEXT_PUBLIC_BASE_PATH: /c3-shop
           NEXT_PUBLIC_ADMIN_PASSKEY: ${{ secrets.ADMIN_PASSKEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
-          NEXT_PUBLIC_SUPABASE_ANON_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_ANON_KEY }}
+          NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

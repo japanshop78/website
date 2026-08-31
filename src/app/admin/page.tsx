@@ -342,7 +342,7 @@ export default function AdminPage() {
                 </div>
                 <p className="text-xs text-zinc-500 dark:text-zinc-400 mt-0.5">
                   {supabaseStatus === "connected" && "Mọi thay đổi thêm/sửa/xóa sẽ tự động cập nhật lên Supabase Cloud và hiển thị ngay cho khách hàng."}
-                  {supabaseStatus === "not_configured" && "Đang đọc trực tiếp từ tệp JSON. Điền NEXT_PUBLIC_SUPABASE_URL và NEXT_PUBLIC_SUPABASE_ANON_KEY trong file .env để đồng bộ đám mây."}
+                  {supabaseStatus === "not_configured" && "Đang đọc trực tiếp từ tệp JSON. Điền .env để đồng bộ đám mây."}
                   {supabaseStatus === "error" && "Chưa tìm thấy bảng trên Supabase. Vui lòng mở Supabase SQL Editor và chạy nội dung file supabase-schema.sql để khởi tạo bảng."}
                   {supabaseStatus === "loading" && "Đang kiểm tra kết nối tới Supabase Cloud..."}
                 </p>

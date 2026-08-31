@@ -5,14 +5,8 @@ import { CategoryProductMapping } from "@/data/categoryProducts";
 import { ProductOrder } from "@/data/order";
 
 // Supabase Connection Configuration
-const SUPABASE_URL =
-  process.env.NEXT_PUBLIC_SUPABASE_URL ||
-  "https://ubetksshjmogtcnzvlyg.supabase.co";
-
-const SUPABASE_ANON_KEY =
-  process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY ||
-  process.env.SUPABASE_KEY ||
-  "";
+const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
+const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
 
 /**
  * Check whether Supabase environment variables are properly defined
