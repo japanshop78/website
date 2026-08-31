@@ -13,34 +13,18 @@ export function generateStaticParams() {
   const categories = categoryService.getAllCategories();
   const ids = new Set<string>();
 
-  // Add all primary category IDs
+  // Add all primary category IDs (standard uppercase e.g. C-01, C-02...)
   categories.forEach((category) => {
     if (category.id) {
-      ids.add(category.id);
-      ids.add(category.id.toLowerCase());
-      const numOnly = category.id.replace(/^C-0?/i, "").replace(/^0+/, "");
-      if (numOnly) ids.add(numOnly);
+      ids.add(category.id.toUpperCase());
     }
   });
 
-  // Add standard IDs C-01 to C-20 and 1 to 20
-  for (let i = 1; i <= 20; i++) {
+  // Add standard IDs C-01 to C-10
+  for (let i = 1; i <= 10; i++) {
     const padded = i < 10 ? `0${i}` : `${i}`;
     ids.add(`C-${padded}`);
-    ids.add(`c-${padded}`);
-    ids.add(String(i));
   }
-
-  // Common aliases for safety
-  const aliases = [
-    "cham-soc-rang-mieng",
-    "thuc-pham-bo-sung",
-    "cham-soc-me-va-be",
-    "cham-soc-mat",
-    "me-va-be",
-    "tpcn",
-  ];
-  aliases.forEach((a) => ids.add(a));
 
   return Array.from(ids).map((id) => ({
     id,
