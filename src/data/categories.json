@@ -1,0 +1,77 @@
+[
+  {
+    "id": "C-01",
+    "name": "Chăm Sóc Cá Nhân",
+    "description": "Các sản phẩm chăm sóc cá nhân toàn diện: sữa rửa mặt, kem đánh răng, chăm sóc da, bọt phụ khoa và giặt đồ nhỏ nội địa Nhật Bản.",
+    "bannerGradient": "from-cyan-500 via-blue-500 to-indigo-600",
+    "badgeColor": "bg-cyan-500/10 text-cyan-600 dark:text-cyan-400 border-cyan-500/20",
+    "iconName": "SparklesIcon",
+    "itemCountText": "14 sản phẩm",
+    "subcategories": [
+      "Sữa rửa mặt",
+      "Chăm sóc mụn lưng & body",
+      "Vệ sinh & Giặt đồ nhỏ",
+      "Kem đánh răng & Chăm sóc da"
+    ]
+  },
+  {
+    "id": "C-02",
+    "name": "Thực Phẩm Bổ Sung & Sức Khỏe",
+    "description": "Thực phẩm chức năng, vitamin, khoáng chất, tảo xoắn, viên uống hỗ trợ xương khớp, tim mạch, tiêu hóa và tăng cường sức khỏe nội địa Nhật Bản.",
+    "bannerGradient": "from-amber-500 via-orange-500 to-rose-500",
+    "badgeColor": "bg-amber-500/10 text-amber-600 dark:text-amber-400 border-amber-500/20",
+    "iconName": "PillIcon",
+    "itemCountText": "53 sản phẩm",
+    "subcategories": [
+      "Xương khớp & Bổ não",
+      "Vitamin & Khoáng chất",
+      "Tiêu hóa & Gan mật",
+      "Tim mạch & Huyết áp",
+      "Trà & Thảo mộc sức khỏe"
+    ]
+  },
+  {
+    "id": "C-03",
+    "name": "Mẹ & Bé",
+    "description": "Sản phẩm xịt chống muỗi, lăn trị côn trùng cắn, kem chống nắng và siro ho dịu nhẹ cho mẹ & bé.",
+    "bannerGradient": "from-pink-500 via-rose-400 to-fuchsia-500",
+    "badgeColor": "bg-pink-500/10 text-pink-600 dark:text-pink-400 border-pink-500/20",
+    "iconName": "HeartIcon",
+    "itemCountText": "20 sản phẩm",
+    "subcategories": [
+      "Chống muỗi & côn trùng",
+      "Chống nắng mẹ & bé",
+      "Bổ sung dinh dưỡng",
+      "Siro ho & Chăm sóc bé"
+    ]
+  },
+  {
+    "id": "C-04",
+    "name": "Chăm Sóc Mắt",
+    "description": "Dung dịch nhỏ mắt và nước rửa mắt chuyên sâu, bảo vệ thị lực, giảm mỏi và khô mắt từ Nhật Bản.",
+    "bannerGradient": "from-blue-600 via-indigo-500 to-sky-400",
+    "badgeColor": "bg-blue-500/10 text-blue-600 dark:text-blue-400 border-blue-500/20",
+    "iconName": "EyeIcon",
+    "itemCountText": "10 sản phẩm",
+    "subcategories": [
+      "Nước nhỏ mắt",
+      "Nước rửa mắt",
+      "Nhỏ mắt trẻ em"
+    ]
+  },
+  {
+    "id": "C-05",
+    "name": "Đồ Gia Dụng",
+    "description": "Máy lọc nước tại vòi Cleansui, bình giữ nhiệt, hộp cơm giữ nhiệt cao cấp chính hãng nội địa Nhật Bản.",
+    "bannerGradient": "from-emerald-500 via-teal-500 to-cyan-600",
+    "badgeColor": "bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20",
+    "iconName": "HomeIcon",
+    "itemCountText": "4 sản phẩm",
+    "subcategories": [
+      "Máy lọc nước tại vòi",
+      "Bình giữ nhiệt",
+      "Hộp cơm giữ nhiệt",
+      "Đồ dùng cho bé"
+    ]
+  }
+]
