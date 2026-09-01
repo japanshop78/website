@@ -18,7 +18,7 @@ export default function CategoryProductManagement() {
     categoryProducts,
     assignProductToCategory,
     removeProductFromCategory,
-    resetCategoryProductsToDefault,
+    moveCategoryProductOrder,
   } = useProductData();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
@@ -27,6 +27,8 @@ export default function CategoryProductManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [isPickerOpen, setIsPickerOpen] = useState(false);
   const [pickerSearch, setPickerSearch] = useState("");
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(10);
 
   // Map category to product count
   const categoryCountMap = useMemo(() => {
@@ -43,27 +45,63 @@ export default function CategoryProductManagement() {
     return categories.find((c) => c.id === selectedCategoryId) || categories[0];
   }, [categories, selectedCategoryId]);
 
-  // Products belonging to the selected category
+  // Products belonging to the selected category (sorted by category order)
   const assignedProducts = useMemo(() => {
     if (!activeCategory) return [];
-    const matchedIds = new Set(
-      categoryProducts
-        .filter((cp) => cp.categoryId.toLowerCase() === activeCategory.id.toLowerCase())
-        .map((cp) => cp.productId)
-    );
+    const catMappings = categoryProducts
+      .filter((cp) => cp.categoryId.toLowerCase() === activeCategory.id.toLowerCase())
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
     const q = searchQuery.toLowerCase().trim();
-    return products.filter((p) => {
-      const isAssigned = matchedIds.has(p.id);
-      if (!isAssigned) return false;
-      if (!q) return true;
-      return (
-        p.name.toLowerCase().includes(q) ||
-        p.id.toLowerCase().includes(q) ||
-        (p.tag && p.tag.toLowerCase().includes(q))
-      );
+    const list: (typeof products[0] & { categoryOrder: number })[] = [];
+
+    catMappings.forEach((cp, idx) => {
+      const p = products.find((prod) => String(prod.id).trim() === String(cp.productId).trim());
+      if (!p) return;
+      if (
+        q &&
+        !(
+          p.name.toLowerCase().includes(q) ||
+          p.id.toLowerCase().includes(q) ||
+          (p.tag && p.tag.toLowerCase().includes(q))
+        )
+      ) {
+        return;
+      }
+      list.push({
+        ...p,
+        categoryOrder: cp.order ?? idx + 1,
+      });
     });
+
+    return list;
   }, [products, categoryProducts, activeCategory, searchQuery]);
+
+  // Pagination for assigned products
+  const totalAssigned = assignedProducts.length;
+  const totalPages = Math.ceil(totalAssigned / pageSize) || 1;
+  const validCurrentPage = Math.min(Math.max(1, currentPage), totalPages);
+  const startIndex = (validCurrentPage - 1) * pageSize;
+  const endIndex = Math.min(startIndex + pageSize, totalAssigned);
+  const paginatedProducts = useMemo(() => {
+    return assignedProducts.slice(startIndex, endIndex);
+  }, [assignedProducts, startIndex, endIndex]);
+
+  const getPageNumbers = () => {
+    const pages: (number | string)[] = [];
+    if (totalPages <= 5) {
+      for (let i = 1; i <= totalPages; i++) pages.push(i);
+    } else {
+      if (validCurrentPage <= 3) {
+        pages.push(1, 2, 3, 4, "...", totalPages);
+      } else if (validCurrentPage >= totalPages - 2) {
+        pages.push(1, "...", totalPages - 3, totalPages - 2, totalPages - 1, totalPages);
+      } else {
+        pages.push(1, "...", validCurrentPage - 1, validCurrentPage, validCurrentPage + 1, "...", totalPages);
+      }
+    }
+    return pages;
+  };
 
   // Products not in the selected category (available to add)
   const unassignedProductsForActiveCategory = useMemo(() => {
@@ -133,16 +171,6 @@ export default function CategoryProductManagement() {
             <PlusIcon className="h-4 w-4" />
             Gán sản phẩm vào danh mục
           </button>
-          <button
-            onClick={() => {
-              if (window.confirm("Khôi phục toàn bộ phân loại sản phẩm về mặc định ban đầu?")) {
-                resetCategoryProductsToDefault();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 px-3.5 py-2.5 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors cursor-pointer"
-          >
-            🔄 Khôi phục gốc
-          </button>
         </div>
       </div>
 
@@ -180,7 +208,10 @@ export default function CategoryProductManagement() {
             return (
               <button
                 key={cat.id}
-                onClick={() => setSelectedCategoryId(cat.id)}
+                onClick={() => {
+                  setSelectedCategoryId(cat.id);
+                  setCurrentPage(1);
+                }}
                 className={`flex items-center gap-2 px-4 py-2.5 rounded-2xl text-xs font-bold transition-all cursor-pointer ${
                   isSelected
                     ? "bg-indigo-600 text-white shadow-md scale-102"
@@ -255,13 +286,19 @@ export default function CategoryProductManagement() {
             type="text"
             placeholder="Tìm sản phẩm trong danh mục này..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setCurrentPage(1);
+            }}
             className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 py-2 pl-9 pr-4 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900"
           />
           <SearchIcon className="absolute left-3 top-2.5 h-3.5 w-3.5 text-zinc-400" />
           {searchQuery && (
             <button
-              onClick={() => setSearchQuery("")}
+              onClick={() => {
+                setSearchQuery("");
+                setCurrentPage(1);
+              }}
               className="absolute right-3 top-2 text-xs text-zinc-400 hover:text-zinc-600"
             >
               Xóa
@@ -274,7 +311,88 @@ export default function CategoryProductManagement() {
         </span>
       </div>
 
-      {/* Products Grid in this Category */}
+      {/* Pagination Bar Above Table */}
+      {totalAssigned > 0 && (
+        <div className="flex flex-col sm:flex-row items-center justify-between gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 px-4 sm:px-6 py-3.5 shadow-xs">
+          <div className="flex flex-wrap items-center gap-3 text-xs text-zinc-500 dark:text-zinc-400">
+            <span>
+              Hiển thị <strong>{startIndex + 1} - {endIndex}</strong> / <strong>{totalAssigned}</strong> sản phẩm
+            </span>
+            <span className="hidden sm:inline text-zinc-300 dark:text-zinc-700">•</span>
+            <div className="flex items-center gap-1.5">
+              <span>Số lượng mỗi trang:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 text-xs font-bold text-zinc-800 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500 shadow-2xs"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={15}>15</option>
+                <option value={20}>20</option>
+                <option value={50}>50</option>
+              </select>
+            </div>
+          </div>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.max(1, prev - 1))}
+                disabled={validCurrentPage === 1}
+                className="rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer bg-white dark:bg-zinc-800/80"
+              >
+                ‹ Trước
+              </button>
+
+              <div className="flex items-center gap-1">
+                {getPageNumbers().map((page, idx) => {
+                  if (page === "...") {
+                    return (
+                      <span
+                        key={`ellipsis-${idx}`}
+                        className="px-2 text-xs text-zinc-400 font-bold"
+                      >
+                        ...
+                      </span>
+                    );
+                  }
+                  const isCurrent = page === validCurrentPage;
+                  return (
+                    <button
+                      key={`page-${page}`}
+                      type="button"
+                      onClick={() => setCurrentPage(page as number)}
+                      className={`min-w-[32px] h-8 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                        isCurrent
+                          ? "bg-indigo-600 text-white shadow-xs"
+                          : "border border-zinc-200 dark:border-zinc-700 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 bg-white dark:bg-zinc-800/60"
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  );
+                })}
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setCurrentPage((prev) => Math.min(totalPages, prev + 1))}
+                disabled={validCurrentPage === totalPages}
+                className="rounded-xl border border-zinc-200 dark:border-zinc-700 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer bg-white dark:bg-zinc-800/80"
+              >
+                Sau ›
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Products Table in this Category */}
       {assignedProducts.length === 0 ? (
         <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-12 text-center shadow-xs">
           <span className="text-4xl block mb-2">📦</span>
@@ -293,79 +411,136 @@ export default function CategoryProductManagement() {
           </button>
         </div>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-          {assignedProducts.map((p) => (
-            <div
-              key={p.id}
-              className="group relative flex flex-col justify-between rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 shadow-xs hover:shadow-md transition-all"
-            >
-              <div>
-                {/* Image & Tag */}
-                <div className="relative aspect-square w-full rounded-xl overflow-hidden bg-zinc-50 dark:bg-zinc-800 border border-zinc-100 dark:border-zinc-700/60 p-2 mb-3">
-                  {p.images?.[0] ? (
-                    <Image
-                      src={getAssetPath(p.images[0])}
-                      alt={p.name}
-                      fill
-                      className="object-contain group-hover:scale-105 transition-transform"
-                    />
-                  ) : (
-                    <div className="h-full w-full bg-zinc-200 dark:bg-zinc-700 rounded-lg" />
-                  )}
+        <div className="overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-sm">
+              <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+                <tr>
+                  <th className="py-4 px-4 sm:px-6 w-28 text-center">Thứ tự</th>
+                  <th className="py-4 px-4 sm:px-6">Sản phẩm</th>
+                  <th className="py-4 px-4 sm:px-6 min-w-[200px]">Chuyển sang danh mục khác</th>
+                  <th className="py-4 px-4 sm:px-6 text-right">Thao tác</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+                {paginatedProducts.map((p, pIdx) => {
+                  const globalIdx = startIndex + pIdx;
+                  const isFirst = globalIdx === 0;
+                  const isLast = globalIdx === assignedProducts.length - 1;
 
-                  {p.tag && (
-                    <span className="absolute top-2 left-2 rounded-md bg-zinc-900/90 dark:bg-zinc-100 text-white dark:text-zinc-950 px-2 py-0.5 text-[9px] font-bold shadow-xs">
-                      {p.tag}
-                    </span>
-                  )}
+                  return (
+                    <tr
+                      key={p.id}
+                      className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors group"
+                    >
+                      {/* 1. Order Column */}
+                      <td className="py-4 px-4 sm:px-6 text-center">
+                        <span className="inline-flex items-center justify-center font-mono text-xs font-bold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200/60 dark:border-zinc-700/60">
+                          #{p.categoryOrder}
+                        </span>
+                      </td>
 
-                  {/* Remove button */}
-                  <button
-                    type="button"
-                    onClick={() => handleRemoveProductFromCategory(p.id)}
-                    className="absolute top-2 right-2 rounded-full bg-white/90 dark:bg-zinc-800/90 p-1.5 text-zinc-400 hover:bg-rose-500 hover:text-white transition-colors cursor-pointer shadow-xs"
-                    title="Gỡ sản phẩm khỏi danh mục này"
-                  >
-                    <CloseIcon className="h-3.5 w-3.5" />
-                  </button>
-                </div>
+                      {/* 2. Product Info */}
+                      <td className="py-4 px-4 sm:px-6">
+                        <div className="flex items-center gap-3.5">
+                          <div className="relative h-14 w-14 shrink-0 overflow-hidden rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-1">
+                            {p.images?.[0] ? (
+                              <Image
+                                src={getAssetPath(p.images[0])}
+                                alt={p.name}
+                                fill
+                                className="object-contain"
+                              />
+                            ) : (
+                              <div className="h-full w-full bg-zinc-100 dark:bg-zinc-700 rounded-lg" />
+                            )}
+                          </div>
+                          <div className="min-w-0 max-w-md">
+                            <div className="flex items-center gap-2">
+                              <span className="font-mono text-xs font-bold text-zinc-400">
+                                #{p.id}
+                              </span>
+                              {p.tag && (
+                                <span className="rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 text-[10px] font-bold">
+                                  {p.tag}
+                                </span>
+                              )}
+                            </div>
+                            <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mt-0.5">
+                              {p.name}
+                            </h4>
+                            <Link
+                              href={`/product/${p.id}`}
+                              target="_blank"
+                              className="text-xs text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 mt-0.5"
+                            >
+                              /product/{p.id} ↗
+                            </Link>
+                          </div>
+                        </div>
+                      </td>
 
-                {/* Product Info */}
-                <span className="font-mono text-[10px] font-bold text-zinc-400 block">
-                  #{p.id}
-                </span>
-                <h4 className="font-bold text-xs text-zinc-900 dark:text-white line-clamp-2 mt-0.5 leading-snug">
-                  {p.name}
-                </h4>
-                <div className="mt-1.5 flex items-baseline justify-between">
-                  <span className="font-black text-xs text-indigo-600 dark:text-indigo-400">
-                    {formatPrice(p.price)}
-                  </span>
-                  <span className="text-[10px] text-zinc-400">
-                    Kho: {p.stock} cái
-                  </span>
-                </div>
-              </div>
+                      {/* 3. Fast Category Changer */}
+                      <td className="py-4 px-4 sm:px-6">
+                        <select
+                          value={activeCategory?.id}
+                          onChange={(e) => handleChangeProductCategory(p.id, e.target.value)}
+                          className="w-full max-w-xs rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-1.5 text-xs font-medium text-zinc-800 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
+                        >
+                          {categories.map((c) => (
+                            <option key={c.id} value={c.id}>
+                              {c.name} {c.id === activeCategory?.id ? "(Hiện tại)" : ""}
+                            </option>
+                          ))}
+                        </select>
+                      </td>
 
-              {/* Fast change category dropdown */}
-              <div className="mt-3 pt-2.5 border-t border-zinc-100 dark:border-zinc-800 space-y-1">
-                <label className="text-[10px] font-semibold text-zinc-400 block">
-                  Chuyển sang danh mục khác:
-                </label>
-                <select
-                  value={activeCategory?.id}
-                  onChange={(e) => handleChangeProductCategory(p.id, e.target.value)}
-                  className="w-full rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 text-[11px] text-zinc-800 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name} {c.id === activeCategory?.id ? "(Hiện tại)" : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-            </div>
-          ))}
+                      {/* 7. Action Buttons */}
+                      <td className="py-4 px-4 sm:px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => moveCategoryProductOrder(activeCategory.id, p.id, "up")}
+                            disabled={isFirst}
+                            title="Chuyển lên trên"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveCategoryProductOrder(activeCategory.id, p.id, "down")}
+                            disabled={isLast}
+                            title="Chuyển xuống dưới"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          >
+                            ▼
+                          </button>
+                          <Link
+                            href={`/product/${p.id}`}
+                            target="_blank"
+                            className="hidden sm:inline-flex items-center h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                            title="Xem trang sản phẩm"
+                          >
+                            👁 Xem
+                          </Link>
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveProductFromCategory(p.id)}
+                            className="h-8 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/40 px-3 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer inline-flex items-center gap-1"
+                            title="Gỡ sản phẩm khỏi danh mục này"
+                          >
+                            <CloseIcon className="h-3 w-3" />
+                            Gỡ khỏi DM
+                          </button>
+                        </div>
+                      </td>
+                  </tr>
+                  );
+                })}
+              </tbody>
+            </table>
+          </div>
         </div>
       )}
 

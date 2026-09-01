@@ -1,6 +1,7 @@
 import { productService } from "@/services/productService";
 import type { Metadata } from "next";
 import ProductDetailPage from "./ProductDetailPage";
+import ProductNotFound from "./not-found";
 
 export const dynamicParams = false;
 
@@ -41,17 +42,8 @@ export default async function Page({ params }: Props) {
   const { id } = await params;
   const product = await productService.getProductById(id);
 
-  const initialProduct = product || {
-    id,
-    name: "Sản phẩm",
-    description: "",
-    images: [],
-    price: 0,
-    rating: 5.0,
-    reviews: 0,
-    stock: 0,
-  };
+  if (!product) return <ProductNotFound />;
 
-  return <ProductDetailPage product={initialProduct} related={[]} />;
+  return <ProductDetailPage product={product} related={[]} />;
 }
 

@@ -35,11 +35,14 @@ interface DbCategoryRow {
   icon_name: string | null;
   item_count_text: string | null;
   subcategories: string[] | null;
+  order_num?: number | null;
 }
 
 interface DbCategoryProductRow {
+  id?: number | null;
   category_id: string;
   product_id: string;
+  order_num?: number | null;
 }
 
 interface DbProductOrderRow {
@@ -90,6 +93,14 @@ function mapProductToDb(p: Product) {
 }
 
 function mapDbCategory(row: DbCategoryRow): Category {
+  const parseOrder = () => {
+    if (row.order_num !== null && row.order_num !== undefined) {
+      return Number(row.order_num);
+    }
+    const numMatch = row.id.match(/\d+/);
+    return numMatch ? parseInt(numMatch[0], 10) : 999;
+  };
+
   return {
     id: row.id,
     name: row.name,
@@ -99,10 +110,13 @@ function mapDbCategory(row: DbCategoryRow): Category {
     iconName: (row.icon_name || "SparklesIcon") as Category["iconName"],
     itemCountText: row.item_count_text || "0 sản phẩm",
     subcategories: Array.isArray(row.subcategories) ? row.subcategories : [],
+    order: parseOrder(),
   };
 }
 
 function mapCategoryToDb(c: Category) {
+  const numMatch = c.id.match(/\d+/);
+  const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : 0;
   return {
     id: c.id,
     slug: c.id.toLowerCase(),
@@ -113,6 +127,7 @@ function mapCategoryToDb(c: Category) {
     icon_name: c.iconName || "SparklesIcon",
     item_count_text: c.itemCountText || "0 sản phẩm",
     subcategories: c.subcategories || [],
+    order_num: c.order !== undefined ? Number(c.order) : defaultOrder,
   };
 }
 
@@ -131,23 +146,23 @@ interface ProductContextType {
   updateProductOrder: (productId: string, newOrder: number, banner?: string) => Promise<void>;
   toggleFeatured: (productId: string, isFeatured: boolean, tag?: string) => Promise<void>;
   moveProductOrder: (productId: string, direction: "up" | "down", banner?: string) => Promise<void>;
-  resetToDefault: () => void;
   exportJSON: () => string;
   importJSON: (jsonString: string) => boolean;
   addCategory: (category: Category) => Promise<void>;
   updateCategory: (id: string, updated: Partial<Category>) => Promise<void>;
   deleteCategory: (id: string) => Promise<void>;
-  resetCategoriesToDefault: () => void;
+  moveCategoryOrder: (categoryId: string, direction: "up" | "down") => Promise<void>;
   exportCategoriesJSON: () => string;
   importCategoriesJSON: (jsonString: string) => boolean;
   getProductsByCategoryId: (categoryId: string) => Product[];
   getCategoryIdByProductId: (productId: string) => string | undefined;
   setCategoryProducts: (categoryId: string, productIds: string[]) => Promise<void>;
-  assignProductToCategory: (productId: string, categoryId: string) => Promise<void>;
+  assignProductToCategory: (productId: string, categoryId: string, order?: number) => Promise<void>;
   removeProductFromCategory: (productId: string, categoryId: string) => Promise<void>;
+  moveCategoryProductOrder: (categoryId: string, productId: string, direction: "up" | "down") => Promise<void>;
+  updateCategoryProductOrder: (categoryId: string, productId: string, newOrder: number) => Promise<void>;
   exportCategoryProductsJSON: () => string;
   importCategoryProductsJSON: (jsonString: string) => boolean;
-  resetCategoryProductsToDefault: () => void;
   getProductById: (id: string) => Product | undefined;
   getProductsByBanner: (banner: string, limit?: number) => Product[];
   getFeaturedProducts: (limit?: number) => Product[];
@@ -175,10 +190,18 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      const [catRes, prodRes, catProdRes, ordRes] = await Promise.all([
-        supabase.from("categories").select("*").order("name", { ascending: true }),
+      let catRes = await supabase.from("categories").select("*").order("order_num", { ascending: true });
+      if (catRes.error && catRes.error.message && catRes.error.message.includes("order_num")) {
+        catRes = await supabase.from("categories").select("*").order("id", { ascending: true });
+      }
+
+      let catProdRes = await supabase.from("category_products").select("*").order("order_num", { ascending: true });
+      if (catProdRes.error && catProdRes.error.message && catProdRes.error.message.includes("order_num")) {
+        catProdRes = await supabase.from("category_products").select("*").order("id", { ascending: true });
+      }
+
+      const [prodRes, ordRes] = await Promise.all([
         supabase.from("products").select("*").order("created_at", { ascending: false }),
-        supabase.from("category_products").select("category_id, product_id"),
         supabase.from("product_orders").select("product_id, order_num, banner").order("order_num", { ascending: true }),
       ]);
 
@@ -212,10 +235,13 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       const dbOrders = (ordRes.data as unknown as DbProductOrderRow[]) || [];
 
       const loadedProducts = dbProducts.map(mapDbProduct);
-      const loadedCategories = dbCategories.map(mapDbCategory);
-      const loadedCatProducts: CategoryProductMapping[] = dbCatProducts.map((cp) => ({
+      const loadedCategories = dbCategories
+        .map(mapDbCategory)
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      const loadedCatProducts: CategoryProductMapping[] = dbCatProducts.map((cp, idx) => ({
         categoryId: String(cp.category_id).trim(),
         productId: String(cp.product_id).trim(),
+        order: typeof cp.order_num === "number" ? cp.order_num : (typeof cp.id === "number" ? cp.id : idx + 1),
       }));
       const loadedOrders: ProductOrder[] = dbOrders.map((o) => ({
         productId: String(o.product_id).trim(),
@@ -557,13 +583,26 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   };
 
   // --- Category CRUD with Supabase sync ---
+  const sortCategories = (cats: Category[]) =>
+    [...cats].sort((a, b) => {
+      const orderA = a.order ?? Number.MAX_SAFE_INTEGER;
+      const orderB = b.order ?? Number.MAX_SAFE_INTEGER;
+      if (orderA !== orderB) return orderA - orderB;
+      return a.id.localeCompare(b.id);
+    });
+
   const addCategory = async (category: Category) => {
-    const newCategories = [...categories, category];
+    const newCategories = sortCategories([...categories, category]);
     setCategories(newCategories);
 
     if (supabase && isSupabaseConfigured()) {
       try {
-        await supabase.from("categories").insert(mapCategoryToDb(category));
+        const row = mapCategoryToDb(category);
+        const { error } = await supabase.from("categories").insert(row);
+        if (error && error.message && error.message.includes("order_num")) {
+          const { order_num, ...rest } = row;
+          await supabase.from("categories").insert(rest);
+        }
       } catch (err) {
         console.error("Failed to add category in Supabase", err);
       }
@@ -571,17 +610,51 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   };
 
   const updateCategory = async (id: string, updated: Partial<Category>) => {
-    const newCategories = categories.map((cat) => (cat.id === id ? { ...cat, ...updated } : cat));
+    const updatedList = categories.map((cat) => (cat.id === id ? { ...cat, ...updated } : cat));
+    const newCategories = sortCategories(updatedList);
     setCategories(newCategories);
 
     if (supabase && isSupabaseConfigured()) {
       try {
         const fullCat = newCategories.find((c) => c.id === id);
         if (fullCat) {
-          await supabase.from("categories").update(mapCategoryToDb(fullCat)).eq("id", id);
+          const row = mapCategoryToDb(fullCat);
+          const { error } = await supabase.from("categories").update(row).eq("id", id);
+          if (error && error.message && error.message.includes("order_num")) {
+            const { order_num, ...rest } = row;
+            await supabase.from("categories").update(rest).eq("id", id);
+          }
         }
       } catch (err) {
         console.error("Failed to update category in Supabase", err);
+      }
+    }
+  };
+
+  const moveCategoryOrder = async (categoryId: string, direction: "up" | "down") => {
+    const currentIndex = categories.findIndex((c) => c.id === categoryId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= categories.length) return;
+
+    const newCats = [...categories];
+    const [moved] = newCats.splice(currentIndex, 1);
+    newCats.splice(targetIndex, 0, moved);
+
+    // Re-assign order 1..N
+    const updated = newCats.map((c, idx) => ({ ...c, order: idx + 1 }));
+    setCategories(updated);
+
+    if (supabase && isSupabaseConfigured()) {
+      const client = supabase;
+      try {
+        await Promise.all(
+          updated.map((c) =>
+            client.from("categories").update({ order_num: c.order }).eq("id", c.id)
+          )
+        );
+      } catch (err) {
+        console.error("Failed to reorder categories in Supabase", err);
       }
     }
   };
@@ -611,16 +684,23 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
       const targetNum = normalizeId(categoryId);
 
-      const matchedProductIds = new Set(
-        categoryProducts
-          .filter(
-            (cp) =>
-              cp.categoryId.toLowerCase().trim() === targetId ||
-              normalizeId(cp.categoryId) === targetNum
-          )
-          .map((cp) => String(cp.productId).trim())
-      );
-      return products.filter((p) => matchedProductIds.has(String(p.id).trim()));
+      const matchedMappings = categoryProducts
+        .filter(
+          (cp) =>
+            cp.categoryId.toLowerCase().trim() === targetId ||
+            normalizeId(cp.categoryId) === targetNum
+        )
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+      const productMap = new Map(products.map((p) => [String(p.id).trim(), p]));
+      const result: Product[] = [];
+      for (const cp of matchedMappings) {
+        const prod = productMap.get(String(cp.productId).trim());
+        if (prod) {
+          result.push(prod);
+        }
+      }
+      return result;
     },
     [categoryProducts, products]
   );
@@ -639,9 +719,10 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   const setCategoryProducts = async (categoryId: string, productIds: string[]) => {
     const targetId = categoryId.trim();
     const remaining = categoryProducts.filter((cp) => cp.categoryId !== targetId);
-    const newMappings: CategoryProductMapping[] = productIds.map((pId) => ({
+    const newMappings: CategoryProductMapping[] = productIds.map((pId, idx) => ({
       categoryId: targetId,
       productId: pId,
+      order: idx + 1,
     }));
 
     const updated = [...remaining, ...newMappings];
@@ -651,9 +732,20 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       try {
         await supabase.from("category_products").delete().eq("category_id", targetId);
         if (newMappings.length > 0) {
-          await supabase.from("category_products").insert(
-            newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId }))
-          );
+          try {
+            await supabase.from("category_products").insert(
+              newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId, order_num: m.order }))
+            );
+          } catch (insertErr: unknown) {
+            const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
+            if (msg.includes("order_num")) {
+              await supabase.from("category_products").insert(
+                newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId }))
+              );
+            } else {
+              throw insertErr;
+            }
+          }
         }
       } catch (err) {
         console.error("Failed to set category products in Supabase", err);
@@ -661,20 +753,125 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  const assignProductToCategory = async (productId: string, categoryId: string) => {
+  const assignProductToCategory = async (productId: string, categoryId: string, order?: number) => {
     const exists = categoryProducts.some(
-      (cp) => cp.productId === productId && cp.categoryId === categoryId
+      (cp) => String(cp.productId).trim() === String(productId).trim() && cp.categoryId === categoryId
     );
     if (!exists) {
-      const updated = [...categoryProducts, { categoryId, productId }];
+      const existingInCat = categoryProducts.filter((cp) => cp.categoryId === categoryId);
+      const nextOrder = typeof order === "number" ? order : existingInCat.length + 1;
+      const updated = [...categoryProducts, { categoryId, productId, order: nextOrder }];
       setCategoryProductsState(updated);
 
       if (supabase && isSupabaseConfigured()) {
         try {
-          await supabase.from("category_products").insert({ category_id: categoryId, product_id: productId });
+          try {
+            await supabase.from("category_products").insert({ category_id: categoryId, product_id: productId, order_num: nextOrder });
+          } catch (insertErr: unknown) {
+            const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
+            if (msg.includes("order_num")) {
+              await supabase.from("category_products").insert({ category_id: categoryId, product_id: productId });
+            } else {
+              throw insertErr;
+            }
+          }
         } catch (err) {
           console.error("Failed to assign product category in Supabase", err);
         }
+      }
+    }
+  };
+
+  const moveCategoryProductOrder = async (
+    categoryId: string,
+    productId: string,
+    direction: "up" | "down"
+  ) => {
+    const targetCatId = categoryId.trim();
+    const targetProdId = String(productId).trim();
+
+    const catProds = categoryProducts
+      .filter((cp) => cp.categoryId === targetCatId)
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+    const index = catProds.findIndex((cp) => String(cp.productId).trim() === targetProdId);
+    if (index === -1) return;
+    if (direction === "up" && index === 0) return;
+    if (direction === "down" && index === catProds.length - 1) return;
+
+    const swapIndex = direction === "up" ? index - 1 : index + 1;
+    const currentItem = catProds[index];
+    const swapItem = catProds[swapIndex];
+
+    const currentOrder = currentItem.order ?? index + 1;
+    const swapOrder = swapItem.order ?? swapIndex + 1;
+
+    const newCurrentOrder = currentOrder === swapOrder ? (direction === "up" ? swapOrder - 1 : swapOrder + 1) : swapOrder;
+    const newSwapOrder = currentOrder === swapOrder ? currentOrder : currentOrder;
+
+    const newMappings = categoryProducts.map((cp) => {
+      if (cp.categoryId === targetCatId && String(cp.productId).trim() === String(currentItem.productId).trim()) {
+        return { ...cp, order: newCurrentOrder };
+      }
+      if (cp.categoryId === targetCatId && String(cp.productId).trim() === String(swapItem.productId).trim()) {
+        return { ...cp, order: newSwapOrder };
+      }
+      return cp;
+    });
+
+    setCategoryProductsState(newMappings);
+
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        try {
+          await supabase
+            .from("category_products")
+            .update({ order_num: newCurrentOrder })
+            .match({ category_id: targetCatId, product_id: currentItem.productId });
+          await supabase
+            .from("category_products")
+            .update({ order_num: newSwapOrder })
+            .match({ category_id: targetCatId, product_id: swapItem.productId });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!msg.includes("order_num")) throw err;
+        }
+      } catch (err) {
+        console.error("Failed to update category product order in Supabase", err);
+      }
+    }
+  };
+
+  const updateCategoryProductOrder = async (
+    categoryId: string,
+    productId: string,
+    newOrder: number
+  ) => {
+    const targetCatId = categoryId.trim();
+    const targetProdId = String(productId).trim();
+
+    const newMappings = categoryProducts.map((cp) => {
+      if (cp.categoryId === targetCatId && String(cp.productId).trim() === targetProdId) {
+        return { ...cp, order: newOrder };
+      }
+      return cp;
+    });
+
+    setCategoryProductsState(newMappings);
+
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        try {
+          await supabase
+            .from("category_products")
+            .update({ order_num: newOrder })
+            .match({ category_id: targetCatId, product_id: targetProdId });
+        } catch (err: unknown) {
+          const msg = err instanceof Error ? err.message : String(err);
+          if (!msg.includes("order_num")) throw err;
+        }
+      } catch (err) {
+        console.error("Failed to update category product order in Supabase", err);
       }
     }
   };
@@ -694,19 +891,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     }
   };
 
-  // --- Reset & JSON Import/Export ---
-  const resetToDefault = () => {
-    seedInitialDataToSupabase();
-  };
-
-  const resetCategoriesToDefault = () => {
-    seedInitialDataToSupabase();
-  };
-
-  const resetCategoryProductsToDefault = () => {
-    seedInitialDataToSupabase();
-  };
-
+  // --- JSON Import/Export ---
   const exportJSON = () => JSON.stringify(products, null, 2);
 
   const importJSON = (jsonString: string): boolean => {
@@ -841,13 +1026,12 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         updateProductOrder,
         toggleFeatured,
         moveProductOrder,
-        resetToDefault,
         exportJSON,
         importJSON,
         addCategory,
         updateCategory,
         deleteCategory,
-        resetCategoriesToDefault,
+        moveCategoryOrder,
         exportCategoriesJSON,
         importCategoriesJSON,
         getProductsByCategoryId,
@@ -855,9 +1039,10 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         setCategoryProducts,
         assignProductToCategory,
         removeProductFromCategory,
+        moveCategoryProductOrder,
+        updateCategoryProductOrder,
         exportCategoryProductsJSON,
         importCategoryProductsJSON,
-        resetCategoryProductsToDefault,
         getProductById,
         getProductsByBanner,
         getFeaturedProducts,

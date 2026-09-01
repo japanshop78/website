@@ -1,6 +1,7 @@
 import { categoryService } from "@/services/categoryService";
 import type { Metadata } from "next";
 import CategoryDetailPage from "./CategoryDetailPage";
+import CategoryNotFound from "./not-found";
 
 export const dynamicParams = false;
 
@@ -40,16 +41,11 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  const category = (await categoryService.getCategoryById(id)) || {
-    id,
-    name: "Danh mục",
-    description: "",
-    bannerGradient: "from-indigo-600 to-violet-700",
-    badgeColor: "bg-indigo-500",
-    iconName: "SparklesIcon" as const,
-    itemCountText: "0 sản phẩm",
-    subcategories: [],
-  };
+  const category = (await categoryService.getCategoryById(id));
+
+  if (!category) {
+    return <CategoryNotFound />;
+  }
 
   const products = await categoryService.getProductsByCategoryId(category.id);
   const stats = await categoryService.getCategoryStats(category.id);

@@ -9,6 +9,7 @@ export interface Category {
   iconName: "ToothIcon" | "PillIcon" | "HeartIcon" | "EyeIcon" | "DropIcon" | "ShirtIcon" | "DeviceIcon" | "HomeIcon" | "SparklesIcon";
   itemCountText: string;
   subcategories?: string[];
+  order?: number;
 }
 
 export const CATEGORIES: Category[] = rawCategories as unknown as Category[];
