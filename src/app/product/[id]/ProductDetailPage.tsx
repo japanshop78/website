@@ -328,7 +328,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                     : "text-zinc-500 hover:text-zinc-900 dark:hover:text-white"
                 }`}
               >
-                {tab === "desc" ? "Mô tả sản phẩm" : "Thành phần"}
+                {tab === "desc" ? "Mô tả sản phẩm" : "Thành phần & Thông số kỹ thuật"}
               </button>
             ))}
           </div>
