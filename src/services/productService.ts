@@ -1,6 +1,4 @@
-import { Product, PRODUCTS } from "@/data/products";
-import { CATEGORY_PRODUCTS } from "@/data/categoryProducts";
-import { FEATURED_PRODUCT_ORDER } from "@/data/order";
+import { Product } from "@/data/products";
 import { supabaseService } from "./supabaseService";
 
 export const productService = {
@@ -13,11 +11,10 @@ export const productService = {
    */
   async getProducts(): Promise<Product[]> {
     try {
-      const data = await supabaseService.getProducts();
-      return data.length > 0 ? data : PRODUCTS;
+      return await supabaseService.getProducts();
     } catch (err) {
-      console.warn("[productService] Fallback to local products due to Supabase error:", err);
-      return PRODUCTS;
+      console.error("[productService] Lỗi khi lấy danh sách sản phẩm từ Supabase:", err);
+      return [];
     }
   },
 
@@ -25,13 +22,13 @@ export const productService = {
    * Lấy chi tiết 1 sản phẩm theo ID từ Supabase Cloud
    */
   async getProductById(id: string): Promise<Product | null> {
+    if (!id) return null;
     try {
-      const product = await supabaseService.getProductById(id);
-      if (product) return product;
+      return await supabaseService.getProductById(id);
     } catch (err) {
-      console.warn(`[productService] Fallback to local product #${id}:`, err);
+      console.error(`[productService] Lỗi khi lấy sản phẩm #${id} từ Supabase:`, err);
+      return null;
     }
-    return PRODUCTS.find((p) => p.id === id || p.id.toLowerCase() === id.toLowerCase()) || null;
   },
 
   /**
@@ -62,76 +59,97 @@ export const productService = {
     return await supabaseService.bulkUpsertProducts(products);
   },
 
-  // ==========================================================================
-  // SYNCHRONOUS / STATIC HELPER METHODS (Static Generation & Fallback)
-  // ==========================================================================
-
   /**
-   * Lấy danh sách sản phẩm đồng bộ (dùng cho generateStaticParams / render tức thì)
+   * Lấy danh sách sản phẩm theo Category ID từ Supabase Cloud
    */
-  getAllProducts(): Product[] {
-    return PRODUCTS;
-  },
-
-  /**
-   * Lấy danh sách sản phẩm theo Category ID
-   */
-  getProductsByCategoryId(categoryId: string): Product[] {
+  async getProductsByCategoryId(categoryId: string): Promise<Product[]> {
     if (!categoryId) return [];
-    const targetId = categoryId.trim().toLowerCase();
-    const normalizeId = (val: string) => val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
-    const targetNum = normalizeId(categoryId);
+    try {
+      const [allProducts, allMappings] = await Promise.all([
+        supabaseService.getProducts(),
+        supabaseService.getCategoryProducts(),
+      ]);
 
-    const matchedProductIds = new Set(
-      CATEGORY_PRODUCTS.filter(
-        (cp) =>
-          cp.categoryId.toLowerCase() === targetId ||
-          normalizeId(cp.categoryId) === targetNum
-      ).map((cp) => cp.productId)
-    );
+      const targetId = categoryId.trim().toLowerCase();
+      const normalizeId = (val: string) => val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
+      const targetNum = normalizeId(categoryId);
 
-    return PRODUCTS.filter((product) => matchedProductIds.has(product.id));
-  },
+      const matchedProductIds = new Set(
+        allMappings
+          .filter(
+            (cp) =>
+              cp.categoryId.toLowerCase() === targetId ||
+              normalizeId(cp.categoryId) === targetNum
+          )
+          .map((cp) => cp.productId)
+      );
 
-  /**
-   * Lấy danh sách sản phẩm bán chạy / nổi bật
-   */
-  getFeaturedProducts(limit?: number): Product[] {
-    const orderMap = new Map<string, number>(
-      FEATURED_PRODUCT_ORDER.map((item) => [item.productId, item.order])
-    );
-
-    const featured = [...PRODUCTS]
-      .filter((product) => orderMap.has(product.id))
-      .sort((a, b) => {
-        const orderA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-        const orderB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
-      });
-
-    if (featured.length === 0) {
-      return [...PRODUCTS]
-        .sort((a, b) => (b.rating || 5) - (a.rating || 5))
-        .slice(0, limit || 10);
+      return allProducts.filter((product) => matchedProductIds.has(product.id));
+    } catch (err) {
+      console.error(`[productService] Lỗi getProductsByCategoryId(${categoryId}):`, err);
+      return [];
     }
-
-    return limit ? featured.slice(0, limit) : featured;
   },
 
   /**
-   * Tìm kiếm sản phẩm theo từ khóa
+   * Lấy danh sách sản phẩm bán chạy / nổi bật từ Supabase Cloud
    */
-  searchProducts(query: string): Product[] {
-    if (!query || !query.trim()) return [];
-    const normalize = (str: string) =>
-      str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+  async getFeaturedProducts(limit?: number): Promise<Product[]> {
+    try {
+      const [products, orders] = await Promise.all([
+        supabaseService.getProducts(),
+        supabaseService.getProductOrders(),
+      ]);
 
-    const searchTarget = normalize(query);
-    return PRODUCTS.filter(
-      (product) =>
-        normalize(product.name).includes(searchTarget) ||
-        normalize(product.description).includes(searchTarget)
-    );
+      const featuredOrders = orders.filter(
+        (o) => !o.banner || o.banner.toLowerCase() === "featured" || o.banner.toLowerCase() === "sản phẩm bán chạy"
+      );
+
+      const orderMap = new Map<string, number>(
+        featuredOrders.map((item) => [String(item.productId).trim(), Number(item.order)])
+      );
+
+      const featured = products
+        .filter((product) => orderMap.has(String(product.id).trim()))
+        .sort((a, b) => {
+          const orderA = orderMap.get(String(a.id).trim()) ?? Number.MAX_SAFE_INTEGER;
+          const orderB = orderMap.get(String(b.id).trim()) ?? Number.MAX_SAFE_INTEGER;
+          return orderA - orderB;
+        });
+
+      if (featured.length === 0) {
+        return products
+          .sort((a, b) => (b.rating || 5) - (a.rating || 5))
+          .slice(0, limit || 10);
+      }
+
+      return limit ? featured.slice(0, limit) : featured;
+    } catch (err) {
+      console.error("[productService] Lỗi getFeaturedProducts:", err);
+      return [];
+    }
+  },
+
+  /**
+   * Tìm kiếm sản phẩm theo từ khóa từ Supabase Cloud
+   */
+  async searchProducts(query: string): Promise<Product[]> {
+    if (!query || !query.trim()) return [];
+    try {
+      const products = await supabaseService.getProducts();
+      const normalize = (str: string) =>
+        str.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+
+      const searchTarget = normalize(query);
+      return products.filter(
+        (product) =>
+          normalize(product.name).includes(searchTarget) ||
+          normalize(product.description).includes(searchTarget)
+      );
+    } catch (err) {
+      console.error("[productService] Lỗi searchProducts:", err);
+      return [];
+    }
   },
 };
 

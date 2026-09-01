@@ -361,22 +361,24 @@ export const supabaseService = {
       throw error;
     }
     return (data || []).map((r) => ({
-      productId: r.product_id,
-      order: r.order_num,
-      banner: r.banner || "featured",
+      productId: String(r.product_id).trim(),
+      order: Number(r.order_num) || 0,
+      banner: r.banner ? String(r.banner).toLowerCase().trim() : "featured",
     }));
   },
 
   async updateProductOrder(productId: string, orderNum: number, banner: string = "featured"): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
+    const bannerKey = banner.toLowerCase().trim();
+    const pId = String(productId).trim();
     const { error } = await supabase.from("product_orders").upsert(
-      { product_id: productId, order_num: orderNum, banner },
+      { product_id: pId, order_num: Number(orderNum), banner: bannerKey },
       { onConflict: "product_id,banner" }
     );
     if (error) {
       // Fallback if unique constraint is product_id only
       const { error: fallbackErr } = await supabase.from("product_orders").upsert(
-        { product_id: productId, order_num: orderNum, banner },
+        { product_id: pId, order_num: Number(orderNum), banner: bannerKey },
         { onConflict: "product_id" }
       );
       if (fallbackErr) throw fallbackErr;
@@ -386,16 +388,20 @@ export const supabaseService = {
   async bulkUpsertProductOrders(orders: ProductOrder[]): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
     const rows = orders.map((o) => ({
-      product_id: o.productId,
-      order_num: o.order,
-      banner: o.banner || "featured",
+      product_id: String(o.productId).trim(),
+      order_num: Number(o.order),
+      banner: o.banner ? String(o.banner).toLowerCase().trim() : "featured",
     }));
     // Try to delete existing and re-insert for clean sync
-    await supabase.from("product_orders").delete().neq("id", 0);
+    try {
+      await supabase.from("product_orders").delete().gte("id", 0);
+    } catch {
+      // ignore
+    }
     const { error } = await supabase.from("product_orders").insert(rows);
     if (error) {
       console.warn("[supabaseService] fallback upserting orders:", error.message);
-      const { error: upsertErr } = await supabase.from("product_orders").upsert(rows);
+      const { error: upsertErr } = await supabase.from("product_orders").upsert(rows, { onConflict: "product_id,banner" });
       if (upsertErr) throw upsertErr;
     }
   },

@@ -14,7 +14,6 @@ import BoltIcon from "@/components/icons/BoltIcon";
 import Breadcrumb from "@/components/Breadcrumb";
 import ChevronLeftIcon from "@/components/icons/ChevronLeftIcon";
 import ChevronRightIcon from "@/components/icons/ChevronRightIcon";
-import { categoryService } from "@/services/categoryService";
 import { getAssetPath } from "@/utils/assetPath";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
@@ -32,7 +31,7 @@ interface Props {
 
 export default function ProductDetailPage({ product, related }: Props) {
   const router = useRouter();
-  const { getProductById, getProductsByCategoryId, getCategoryIdByProductId, isLoaded } = useProductData();
+  const { getProductById, getProductsByCategoryId, getCategoryIdByProductId, categories, isLoaded } = useProductData();
   const { addToCart } = useCart();
 
   const currentProduct =
@@ -75,7 +74,9 @@ export default function ProductDetailPage({ product, related }: Props) {
       ? calcDiscount(currentProduct.price, currentProduct.oldPrice)
       : null;
 
-  const category = categoryService.getCategoryById(currentProductCategoryId);
+  const category = categories.find(
+    (c) => c.id.toLowerCase() === currentProductCategoryId.toLowerCase()
+  );
   const categoryName = category ? category.name : "Sản phẩm";
   const categoryHref = category ? `/category/${category.id}` : "/";
 

@@ -160,10 +160,10 @@ interface ProductContextType {
 const ProductDataContext = createContext<ProductContextType | undefined>(undefined);
 
 export function ProductDataProvider({ children }: { children: React.ReactNode }) {
-  const [products, setProducts] = useState<Product[]>(DEFAULT_PRODUCTS);
-  const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
-  const [categoryProducts, setCategoryProductsState] = useState<CategoryProductMapping[]>(DEFAULT_CATEGORY_PRODUCTS);
-  const [orders, setOrders] = useState<ProductOrder[]>(DEFAULT_ORDER);
+  const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<Category[]>([]);
+  const [categoryProducts, setCategoryProductsState] = useState<CategoryProductMapping[]>([]);
+  const [orders, setOrders] = useState<ProductOrder[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseConnectionStatus>("loading");
 
@@ -179,7 +179,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         supabase.from("categories").select("*").order("name", { ascending: true }),
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("category_products").select("category_id, product_id"),
-        supabase.from("product_orders").select("product_id, order_num").order("order_num", { ascending: true }),
+        supabase.from("product_orders").select("product_id, order_num, banner").order("order_num", { ascending: true }),
       ]);
 
       if (catRes.error || prodRes.error || catProdRes.error || ordRes.error) {
@@ -205,36 +205,30 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         return false;
       }
 
-      // If database has records
+      // Map records directly from Supabase Cloud
       const dbCategories = (catRes.data as unknown as DbCategoryRow[]) || [];
       const dbProducts = (prodRes.data as unknown as DbProductRow[]) || [];
       const dbCatProducts = (catProdRes.data as unknown as DbCategoryProductRow[]) || [];
       const dbOrders = (ordRes.data as unknown as DbProductOrderRow[]) || [];
 
-      if (dbProducts.length > 0 || dbCategories.length > 0) {
-        const loadedProducts = dbProducts.map(mapDbProduct);
-        const loadedCategories = dbCategories.map(mapDbCategory);
-        const loadedCatProducts: CategoryProductMapping[] = dbCatProducts.map((cp) => ({
-          categoryId: cp.category_id,
-          productId: cp.product_id,
-        }));
-        const loadedOrders: ProductOrder[] = dbOrders.map((o) => ({
-          productId: o.product_id,
-          order: o.order_num,
-          banner: o.banner || "featured",
-        }));
+      const loadedProducts = dbProducts.map(mapDbProduct);
+      const loadedCategories = dbCategories.map(mapDbCategory);
+      const loadedCatProducts: CategoryProductMapping[] = dbCatProducts.map((cp) => ({
+        categoryId: String(cp.category_id).trim(),
+        productId: String(cp.product_id).trim(),
+      }));
+      const loadedOrders: ProductOrder[] = dbOrders.map((o) => ({
+        productId: String(o.product_id).trim(),
+        order: Number(o.order_num) || 0,
+        banner: o.banner ? String(o.banner).toLowerCase().trim() : "featured",
+      }));
 
-        setProducts(loadedProducts);
-        setCategories(loadedCategories);
-        setCategoryProductsState(loadedCatProducts);
-        setOrders(loadedOrders);
-        setSupabaseStatus("connected");
-        return true;
-      } else {
-        // Table exists but is empty
-        setSupabaseStatus("connected");
-        return false;
-      }
+      setProducts(loadedProducts);
+      setCategories(loadedCategories);
+      setCategoryProductsState(loadedCatProducts);
+      setOrders(loadedOrders);
+      setSupabaseStatus("connected");
+      return true;
     } catch (err) {
       console.error("Failed to connect to Supabase", err);
       setSupabaseStatus("error");
@@ -301,24 +295,34 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
 
       // 3. Category Products
       const catProdToInsert = DEFAULT_CATEGORY_PRODUCTS.map((cp) => ({
-        category_id: cp.categoryId,
-        product_id: cp.productId,
+        category_id: String(cp.categoryId).trim(),
+        product_id: String(cp.productId).trim(),
       }));
       // Clear old mappings to avoid duplicates
-      await supabase.from("category_products").delete().neq("id", 0);
+      try {
+        await supabase.from("category_products").delete().gte("id", 0);
+      } catch {
+        // ignore
+      }
       const { error: cpErr } = await supabase.from("category_products").insert(catProdToInsert);
-      if (cpErr) throw new Error(`Lỗi liên kết danh mục - sản phẩm: ${cpErr.message}`);
+      if (cpErr) {
+        await supabase.from("category_products").upsert(catProdToInsert, { onConflict: "category_id,product_id" });
+      }
 
       // 4. Orders
       const ordersToInsert = DEFAULT_ORDER.map((o) => ({
-        product_id: o.productId,
-        order_num: o.order,
-        banner: o.banner || "featured",
+        product_id: String(o.productId).trim(),
+        order_num: Number(o.order),
+        banner: o.banner ? String(o.banner).toLowerCase().trim() : "featured",
       }));
-      await supabase.from("product_orders").delete().neq("id", 0);
+      try {
+        await supabase.from("product_orders").delete().gte("id", 0);
+      } catch {
+        // ignore
+      }
       const { error: ordErr } = await supabase.from("product_orders").insert(ordersToInsert);
       if (ordErr) {
-        await supabase.from("product_orders").upsert(ordersToInsert);
+        await supabase.from("product_orders").upsert(ordersToInsert, { onConflict: "product_id,banner" });
       }
 
       await fetchDataFromSupabase();
@@ -600,20 +604,37 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   };
 
   // --- Category-Product Mappings ---
-  const getProductsByCategoryId = (categoryId: string) => {
-    const targetId = categoryId.toLowerCase().trim();
-    const matchedProductIds = new Set(
-      categoryProducts
-        .filter((cp) => cp.categoryId.toLowerCase().trim() === targetId)
-        .map((cp) => cp.productId)
-    );
-    return products.filter((p) => matchedProductIds.has(p.id));
-  };
+  const getProductsByCategoryId = useCallback(
+    (categoryId: string) => {
+      const targetId = categoryId.toLowerCase().trim();
+      const normalizeId = (val: string) =>
+        val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
+      const targetNum = normalizeId(categoryId);
 
-  const getCategoryIdByProductId = (productId: string) => {
-    const match = categoryProducts.find((cp) => cp.productId === productId);
-    return match?.categoryId;
-  };
+      const matchedProductIds = new Set(
+        categoryProducts
+          .filter(
+            (cp) =>
+              cp.categoryId.toLowerCase().trim() === targetId ||
+              normalizeId(cp.categoryId) === targetNum
+          )
+          .map((cp) => String(cp.productId).trim())
+      );
+      return products.filter((p) => matchedProductIds.has(String(p.id).trim()));
+    },
+    [categoryProducts, products]
+  );
+
+  const getCategoryIdByProductId = useCallback(
+    (productId: string) => {
+      const targetId = String(productId).trim();
+      const match = categoryProducts.find(
+        (cp) => String(cp.productId).trim() === targetId
+      );
+      return match?.categoryId;
+    },
+    [categoryProducts]
+  );
 
   const setCategoryProducts = async (categoryId: string, productIds: string[]) => {
     const targetId = categoryId.trim();
@@ -675,18 +696,15 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
 
   // --- Reset & JSON Import/Export ---
   const resetToDefault = () => {
-    setProducts(DEFAULT_PRODUCTS);
-    setOrders(DEFAULT_ORDER);
-    setCategoryProductsState(DEFAULT_CATEGORY_PRODUCTS);
+    seedInitialDataToSupabase();
   };
 
   const resetCategoriesToDefault = () => {
-    setCategories(DEFAULT_CATEGORIES);
-    setCategoryProductsState(DEFAULT_CATEGORY_PRODUCTS);
+    seedInitialDataToSupabase();
   };
 
   const resetCategoryProductsToDefault = () => {
-    setCategoryProductsState(DEFAULT_CATEGORY_PRODUCTS);
+    seedInitialDataToSupabase();
   };
 
   const exportJSON = () => JSON.stringify(products, null, 2);
@@ -734,58 +752,79 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   };
 
   // --- Selectors ---
-  const getProductById = (id: string) => {
-    return products.find((p) => p.id === id || p.id.toLowerCase() === id.toLowerCase());
-  };
-
-  const getProductsByBanner = (bannerName: string, limit?: number): Product[] => {
-    const target = bannerName.toLowerCase().trim();
-    const bannerOrders = orders.filter((o) => {
-      const b = (o.banner || "featured").toLowerCase().trim();
-      return (
-        b === target ||
-        (target === "featured" && (b === "sản phẩm bán chạy" || b === "bestseller")) ||
-        (target === "discount" && (b === "sản phẩm giảm giá" || b === "khuyến mãi"))
+  const getProductById = useCallback(
+    (id: string) => {
+      const targetId = String(id).trim().toLowerCase();
+      return products.find(
+        (p) => String(p.id).trim().toLowerCase() === targetId
       );
-    });
+    },
+    [products]
+  );
 
-    const orderMap = new Map<string, number>(bannerOrders.map((o) => [o.productId, o.order]));
-
-    const bannerProducts = products
-      .filter((p) => orderMap.has(p.id))
-      .sort((a, b) => {
-        const orderA = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
-        const orderB = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
-        return orderA - orderB;
+  const getProductsByBanner = useCallback(
+    (bannerName: string, limit?: number): Product[] => {
+      const target = bannerName.toLowerCase().trim();
+      const bannerOrders = orders.filter((o) => {
+        const b = (o.banner || "featured").toLowerCase().trim();
+        return (
+          b === target ||
+          (target === "featured" &&
+            (b === "sản phẩm bán chạy" || b === "bestseller" || b === "")) ||
+          (target === "discount" &&
+            (b === "sản phẩm giảm giá" || b === "khuyến mãi"))
+        );
       });
 
-    if (bannerProducts.length > 0) {
-      return limit ? bannerProducts.slice(0, limit) : bannerProducts;
-    }
+      const orderMap = new Map<string, number>(
+        bannerOrders.map((o) => [String(o.productId).trim(), Number(o.order)])
+      );
 
-    // Fallbacks
-    if (target === "featured" || target === "sản phẩm bán chạy") {
-      return [...products]
-        .sort((a, b) => (b.rating || 5) - (a.rating || 5))
-        .slice(0, limit || 10);
-    }
+      const bannerProducts = products
+        .filter((p) => orderMap.has(String(p.id).trim()))
+        .sort((a, b) => {
+          const orderA =
+            orderMap.get(String(a.id).trim()) ?? Number.MAX_SAFE_INTEGER;
+          const orderB =
+            orderMap.get(String(b.id).trim()) ?? Number.MAX_SAFE_INTEGER;
+          return orderA - orderB;
+        });
 
-    if (target === "discount" || target === "sản phẩm giảm giá") {
-      return [...products]
-        .filter((p) => p.oldPrice && p.oldPrice > p.price)
-        .slice(0, limit || 10);
-    }
+      if (bannerProducts.length > 0) {
+        return limit ? bannerProducts.slice(0, limit) : bannerProducts;
+      }
 
-    return [];
-  };
+      // Fallbacks
+      if (target === "featured" || target === "sản phẩm bán chạy") {
+        return [...products]
+          .sort((a, b) => (b.rating || 5) - (a.rating || 5))
+          .slice(0, limit || 10);
+      }
 
-  const getFeaturedProducts = (limit?: number) => {
-    return getProductsByBanner("featured", limit);
-  };
+      if (target === "discount" || target === "sản phẩm giảm giá") {
+        return [...products]
+          .filter((p) => p.oldPrice && p.oldPrice > p.price)
+          .slice(0, limit || 10);
+      }
 
-  const getDiscountedProducts = (limit?: number) => {
-    return getProductsByBanner("discount", limit);
-  };
+      return [];
+    },
+    [orders, products]
+  );
+
+  const getFeaturedProducts = useCallback(
+    (limit?: number) => {
+      return getProductsByBanner("featured", limit);
+    },
+    [getProductsByBanner]
+  );
+
+  const getDiscountedProducts = useCallback(
+    (limit?: number) => {
+      return getProductsByBanner("discount", limit);
+    },
+    [getProductsByBanner]
+  );
 
   return (
     <ProductDataContext.Provider
