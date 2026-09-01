@@ -1,8 +1,7 @@
 import { productService } from "@/services/productService";
-import { CATEGORY_PRODUCTS } from "@/data/categoryProducts";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import ProductDetailPage from "./ProductDetailPage";
+import ProductNotFound from "./not-found";
 
 export const dynamicParams = false;
 
@@ -11,14 +10,9 @@ interface Props {
 }
 
 export function generateStaticParams() {
-  const products = productService.getAllProducts();
   const ids = new Set<string>();
 
-  products.forEach((p) => {
-    if (p.id) ids.add(p.id);
-  });
-
-  // Pre-generate range 1 to 200 for safety with static export
+  // Pre-generate range 1 to 200 for static export slots
   for (let i = 1; i <= 200; i++) {
     ids.add(String(i));
   }
@@ -34,7 +28,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!product) {
     return {
-      title: "Sản phẩm không tồn tại - Japan Shop",
+      title: "Sản phẩm - Japan Shop",
     };
   }
 
@@ -48,17 +42,8 @@ export default async function Page({ params }: Props) {
   const { id } = await params;
   const product = await productService.getProductById(id);
 
-  if (!product) {
-    notFound();
-  }
+  if (!product) return <ProductNotFound />;
 
-  const mapping = CATEGORY_PRODUCTS.find((cp) => cp.productId === product.id);
-  const related = mapping
-    ? productService
-        .getProductsByCategoryId(mapping.categoryId)
-        .filter((p) => p.id !== product.id)
-        .slice(0, 4)
-    : [];
-
-  return <ProductDetailPage product={product} related={related} />;
+  return <ProductDetailPage product={product} related={[]} />;
 }
+

@@ -23,7 +23,6 @@ export default function ProductManagement() {
     deleteProduct,
     getCategoryIdByProductId,
     getProductsByCategoryId,
-    resetToDefault,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -137,16 +136,6 @@ export default function ProductManagement() {
           >
             <PlusIcon className="h-4 w-4" />
             Thêm sản phẩm mới
-          </button>
-          <button
-            onClick={() => {
-              if (window.confirm("Khôi phục toàn bộ sản phẩm về dữ liệu mặc định ban đầu?")) {
-                resetToDefault();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 px-3.5 py-2.5 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors cursor-pointer"
-          >
-            🔄 Khôi phục gốc
           </button>
         </div>
       </div>

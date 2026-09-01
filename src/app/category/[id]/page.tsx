@@ -1,7 +1,7 @@
 import { categoryService } from "@/services/categoryService";
-import { notFound } from "next/navigation";
 import type { Metadata } from "next";
 import CategoryDetailPage from "./CategoryDetailPage";
+import CategoryNotFound from "./not-found";
 
 export const dynamicParams = false;
 
@@ -10,18 +10,10 @@ interface Props {
 }
 
 export function generateStaticParams() {
-  const categories = categoryService.getAllCategories();
   const ids = new Set<string>();
 
-  // Add all primary category IDs (standard uppercase e.g. C-01, C-02...)
-  categories.forEach((category) => {
-    if (category.id) {
-      ids.add(category.id.toUpperCase());
-    }
-  });
-
-  // Add standard IDs C-01 to C-10
-  for (let i = 1; i <= 10; i++) {
+  // Add standard IDs C-01 to C-20
+  for (let i = 1; i <= 20; i++) {
     const padded = i < 10 ? `0${i}` : `${i}`;
     ids.add(`C-${padded}`);
   }
@@ -33,11 +25,11 @@ export function generateStaticParams() {
 
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
-  const category = categoryService.getCategoryById(id);
+  const category = await categoryService.getCategoryById(id);
 
   if (!category) {
     return {
-      title: "Danh mục không tồn tại - Japan Shop",
+      title: "Danh mục - Japan Shop",
     };
   }
 
@@ -49,15 +41,15 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
 export default async function Page({ params }: Props) {
   const { id } = await params;
-  const category = categoryService.getCategoryById(id);
+  const category = (await categoryService.getCategoryById(id));
 
   if (!category) {
-    notFound();
+    return <CategoryNotFound />;
   }
 
-  const products = categoryService.getProductsByCategoryId(category.id);
-  const stats = categoryService.getCategoryStats(category.id);
-  const allCategories = categoryService.getAllCategories();
+  const products = await categoryService.getProductsByCategoryId(category.id);
+  const stats = await categoryService.getCategoryStats(category.id);
+  const allCategories = await categoryService.getCategories();
 
   return (
     <CategoryDetailPage
@@ -68,3 +60,4 @@ export default async function Page({ params }: Props) {
     />
   );
 }
+

@@ -62,6 +62,7 @@ export interface DbCategoryRow {
   icon_name: string | null;
   item_count_text: string | null;
   subcategories: string[] | null;
+  order_num?: number | null;
 }
 
 export interface DbCategoryProductRow {
@@ -116,6 +117,14 @@ export function mapProductToDbRow(p: Product): Record<string, unknown> {
 }
 
 export function mapDbCategoryToCategory(row: DbCategoryRow): Category {
+  const parseOrder = () => {
+    if (row.order_num !== null && row.order_num !== undefined) {
+      return Number(row.order_num);
+    }
+    const numMatch = row.id.match(/\d+/);
+    return numMatch ? parseInt(numMatch[0], 10) : 999;
+  };
+
   return {
     id: row.id,
     name: row.name,
@@ -125,10 +134,13 @@ export function mapDbCategoryToCategory(row: DbCategoryRow): Category {
     iconName: (row.icon_name || "SparklesIcon") as Category["iconName"],
     itemCountText: row.item_count_text || "0 sản phẩm",
     subcategories: Array.isArray(row.subcategories) ? row.subcategories : [],
+    order: parseOrder(),
   };
 }
 
 export function mapCategoryToDbRow(c: Category): Record<string, unknown> {
+  const numMatch = c.id.match(/\d+/);
+  const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : 0;
   return {
     id: c.id,
     slug: c.id.toLowerCase(),
@@ -139,6 +151,7 @@ export function mapCategoryToDbRow(c: Category): Record<string, unknown> {
     icon_name: c.iconName || "SparklesIcon",
     item_count_text: c.itemCountText || "0 sản phẩm",
     subcategories: c.subcategories || [],
+    order_num: c.order !== undefined ? Number(c.order) : defaultOrder,
   };
 }
 
@@ -251,23 +264,41 @@ export const supabaseService = {
   // --------------------------------------------------------------------------
   async getCategories(): Promise<Category[]> {
     if (!supabase) return [];
+    try {
+      const { data, error } = await supabase.from("categories").select("*").order("order_num", { ascending: true });
+      if (!error && data) {
+        return data.map(mapDbCategoryToCategory).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      }
+    } catch {
+      // ignore
+    }
     const { data, error } = await supabase.from("categories").select("*").order("id", { ascending: true });
     if (error) {
       console.error("[supabaseService] getCategories error:", error.message);
       throw error;
     }
-    return (data || []).map(mapDbCategoryToCategory);
+    return (data || []).map(mapDbCategoryToCategory).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   },
 
   async createCategory(category: Category): Promise<Category> {
     if (!supabase) throw new Error("Supabase is not configured");
     const row = mapCategoryToDbRow(category);
-    const { data, error } = await supabase.from("categories").insert(row).select().single();
-    if (error) {
-      console.error("[supabaseService] createCategory error:", error.message);
-      throw error;
+    try {
+      const { data, error } = await supabase.from("categories").insert(row).select().single();
+      if (!error && data) return mapDbCategoryToCategory(data);
+      if (error && error.message && error.message.includes("order_num")) {
+        // Fallback without order_num if column not present yet
+        const { order_num, ...rest } = row;
+        const { data: fallbackData, error: fallbackErr } = await supabase.from("categories").insert(rest).select().single();
+        if (fallbackErr) throw fallbackErr;
+        return mapDbCategoryToCategory(fallbackData);
+      }
+      if (error) throw error;
+    } catch (err) {
+      console.error("[supabaseService] createCategory error:", err);
+      throw err;
     }
-    return mapDbCategoryToCategory(data);
+    return category;
   },
 
   async updateCategory(id: string, updates: Partial<Category>): Promise<void> {
@@ -280,9 +311,16 @@ export const supabaseService = {
     if (updates.iconName !== undefined) payload.icon_name = updates.iconName;
     if (updates.itemCountText !== undefined) payload.item_count_text = updates.itemCountText;
     if (updates.subcategories !== undefined) payload.subcategories = updates.subcategories;
+    if (updates.order !== undefined) payload.order_num = Number(updates.order);
 
     const { error } = await supabase.from("categories").update(payload).eq("id", id);
     if (error) {
+      if (error.message && error.message.includes("order_num")) {
+        delete payload.order_num;
+        const { error: retryErr } = await supabase.from("categories").update(payload).eq("id", id);
+        if (retryErr) throw retryErr;
+        return;
+      }
       console.error(`[supabaseService] updateCategory(${id}) error:`, error.message);
       throw error;
     }
@@ -302,7 +340,15 @@ export const supabaseService = {
     if (!supabase) throw new Error("Supabase is not configured");
     const rows = categories.map(mapCategoryToDbRow);
     const { error } = await supabase.from("categories").upsert(rows, { onConflict: "id" });
-    if (error) throw error;
+    if (error) {
+      if (error.message && error.message.includes("order_num")) {
+        const fallbackRows = rows.map(({ order_num, ...rest }) => rest);
+        const { error: retryErr } = await supabase.from("categories").upsert(fallbackRows, { onConflict: "id" });
+        if (retryErr) throw retryErr;
+        return;
+      }
+      throw error;
+    }
   },
 
   // --------------------------------------------------------------------------
@@ -310,24 +356,59 @@ export const supabaseService = {
   // --------------------------------------------------------------------------
   async getCategoryProducts(): Promise<CategoryProductMapping[]> {
     if (!supabase) return [];
-    const { data, error } = await supabase.from("category_products").select("*");
+    let { data, error } = await supabase.from("category_products").select("*").order("order_num", { ascending: true });
+    if (error && error.message && error.message.includes("order_num")) {
+      const fallback = await supabase.from("category_products").select("*").order("id", { ascending: true });
+      data = fallback.data;
+      error = fallback.error;
+    }
     if (error) {
       console.error("[supabaseService] getCategoryProducts error:", error.message);
       throw error;
     }
-    return (data || []).map((r) => ({
+    return (data || []).map((r, idx) => ({
       categoryId: r.category_id,
       productId: r.product_id,
+      order: typeof r.order_num === "number" ? r.order_num : (typeof r.id === "number" ? r.id : idx + 1),
     }));
   },
 
-  async assignProductCategory(categoryId: string, productId: string): Promise<void> {
+  async assignProductCategory(categoryId: string, productId: string, order?: number): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
-    const { error } = await supabase.from("category_products").upsert(
-      { category_id: categoryId, product_id: productId },
-      { onConflict: "category_id,product_id" }
-    );
-    if (error) throw error;
+    const payload: Record<string, unknown> = { category_id: categoryId, product_id: productId };
+    if (typeof order === "number") payload.order_num = order;
+    try {
+      const { error } = await supabase.from("category_products").upsert(
+        payload,
+        { onConflict: "category_id,product_id" }
+      );
+      if (error) throw error;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (msg.includes("order_num")) {
+        const { error } = await supabase.from("category_products").upsert(
+          { category_id: categoryId, product_id: productId },
+          { onConflict: "category_id,product_id" }
+        );
+        if (error) throw error;
+      } else {
+        throw err;
+      }
+    }
+  },
+
+  async updateCategoryProductOrder(categoryId: string, productId: string, order: number): Promise<void> {
+    if (!supabase) throw new Error("Supabase is not configured");
+    try {
+      const { error } = await supabase
+        .from("category_products")
+        .update({ order_num: order })
+        .match({ category_id: categoryId, product_id: productId });
+      if (error) throw error;
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      if (!msg.includes("order_num")) throw err;
+    }
   },
 
   async removeProductCategory(categoryId: string, productId: string): Promise<void> {
@@ -341,12 +422,27 @@ export const supabaseService = {
 
   async bulkUpsertCategoryProducts(mappings: CategoryProductMapping[]): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
-    const rows = mappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId }));
+    const rows = mappings.map((m, idx) => ({
+      category_id: m.categoryId,
+      product_id: m.productId,
+      order_num: typeof m.order === "number" ? m.order : idx + 1,
+    }));
     const chunkSize = 50;
     for (let i = 0; i < rows.length; i += chunkSize) {
       const chunk = rows.slice(i, i + chunkSize);
-      const { error } = await supabase.from("category_products").upsert(chunk, { onConflict: "category_id,product_id" });
-      if (error) throw error;
+      try {
+        const { error } = await supabase.from("category_products").upsert(chunk, { onConflict: "category_id,product_id" });
+        if (error) throw error;
+      } catch (err: unknown) {
+        const msg = err instanceof Error ? err.message : String(err);
+        if (msg.includes("order_num")) {
+          const fallbackChunk = chunk.map(({ order_num, ...rest }) => rest);
+          const { error } = await supabase.from("category_products").upsert(fallbackChunk, { onConflict: "category_id,product_id" });
+          if (error) throw error;
+        } else {
+          throw err;
+        }
+      }
     }
   },
 
@@ -361,22 +457,24 @@ export const supabaseService = {
       throw error;
     }
     return (data || []).map((r) => ({
-      productId: r.product_id,
-      order: r.order_num,
-      banner: r.banner || "featured",
+      productId: String(r.product_id).trim(),
+      order: Number(r.order_num) || 0,
+      banner: r.banner ? String(r.banner).toLowerCase().trim() : "featured",
     }));
   },
 
   async updateProductOrder(productId: string, orderNum: number, banner: string = "featured"): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
+    const bannerKey = banner.toLowerCase().trim();
+    const pId = String(productId).trim();
     const { error } = await supabase.from("product_orders").upsert(
-      { product_id: productId, order_num: orderNum, banner },
+      { product_id: pId, order_num: Number(orderNum), banner: bannerKey },
       { onConflict: "product_id,banner" }
     );
     if (error) {
       // Fallback if unique constraint is product_id only
       const { error: fallbackErr } = await supabase.from("product_orders").upsert(
-        { product_id: productId, order_num: orderNum, banner },
+        { product_id: pId, order_num: Number(orderNum), banner: bannerKey },
         { onConflict: "product_id" }
       );
       if (fallbackErr) throw fallbackErr;
@@ -386,16 +484,20 @@ export const supabaseService = {
   async bulkUpsertProductOrders(orders: ProductOrder[]): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
     const rows = orders.map((o) => ({
-      product_id: o.productId,
-      order_num: o.order,
-      banner: o.banner || "featured",
+      product_id: String(o.productId).trim(),
+      order_num: Number(o.order),
+      banner: o.banner ? String(o.banner).toLowerCase().trim() : "featured",
     }));
     // Try to delete existing and re-insert for clean sync
-    await supabase.from("product_orders").delete().neq("id", 0);
+    try {
+      await supabase.from("product_orders").delete().gte("id", 0);
+    } catch {
+      // ignore
+    }
     const { error } = await supabase.from("product_orders").insert(rows);
     if (error) {
       console.warn("[supabaseService] fallback upserting orders:", error.message);
-      const { error: upsertErr } = await supabase.from("product_orders").upsert(rows);
+      const { error: upsertErr } = await supabase.from("product_orders").upsert(rows, { onConflict: "product_id,banner" });
       if (upsertErr) throw upsertErr;
     }
   },

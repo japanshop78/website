@@ -1,13 +1,15 @@
+"use client";
+
 import Link from "next/link";
 import Image from "next/image";
 import LocationIcon from "./icons/LocationIcon";
 import PhoneIcon from "./icons/PhoneIcon";
 import MailIcon from "./icons/MailIcon";
-import { categoryService } from "@/services/categoryService";
+import { useProductData } from "@/context/ProductDataContext";
 import { getAssetPath } from "@/utils/assetPath";
 
 export default function Footer() {
-  const categories = categoryService.getAllCategories();
+  const { categories } = useProductData();
 
   return (
     <footer className="w-full border-t border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-zinc-950">

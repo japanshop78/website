@@ -79,6 +79,7 @@ export default function CategoryFormModal({
 
   const [id, setId] = useState("");
   const [name, setName] = useState("");
+  const [order, setOrder] = useState<number>(1);
   const [description, setDescription] = useState("");
   const [iconName, setIconName] = useState<Category["iconName"]>("SparklesIcon");
   const [selectedGradientIndex, setSelectedGradientIndex] = useState(0);
@@ -87,6 +88,7 @@ export default function CategoryFormModal({
     if (initialCategory) {
       setId(initialCategory.id);
       setName(initialCategory.name);
+      setOrder(initialCategory.order ?? 1);
       setDescription(initialCategory.description || "");
       setIconName(initialCategory.iconName || "SparklesIcon");
 
@@ -98,6 +100,7 @@ export default function CategoryFormModal({
       const nextNum = String(existingCount + 1).padStart(2, "0");
       setId(`C-${nextNum}`);
       setName("");
+      setOrder(existingCount + 1);
       setDescription("");
       setIconName("SparklesIcon");
       setSelectedGradientIndex(0);
@@ -117,13 +120,14 @@ export default function CategoryFormModal({
 
     const categoryData: Category = {
       id: id.trim() || `C-${Date.now()}`,
+      order: Number(order) || 1,
       name: name.trim(),
       description: description.trim(),
       iconName,
       bannerGradient: currentGrad.value,
       badgeColor: currentGrad.badge,
       itemCountText: initialCategory?.itemCountText || "0 sản phẩm",
-      subcategories: initialCategory?.subcategories,
+      subcategories: [],
     };
 
     onSave(categoryData);
@@ -143,7 +147,7 @@ export default function CategoryFormModal({
               {isEdit ? "Chỉnh sửa danh mục" : "Thêm danh mục mới"}
             </h2>
             <p className="text-xs text-zinc-500 dark:text-zinc-400">
-              {isEdit ? `Mã danh mục: #${id}` : "Nhập thông tin nhóm ngành hàng sản phẩm"}
+              {isEdit ? `Mã danh mục: #${id} • Thứ tự: #${order}` : "Nhập thông tin nhóm ngành hàng sản phẩm"}
             </p>
           </div>
 
@@ -168,11 +172,11 @@ export default function CategoryFormModal({
 
         {/* Form Body */}
         <div className="flex-1 overflow-y-auto p-6 space-y-4">
-          {/* Tên & Mã */}
+          {/* Tên, Mã & Thứ tự */}
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-12">
-            <div className="sm:col-span-4">
+            <div className="sm:col-span-3">
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1.5 flex items-center justify-between">
-                <span>Mã danh mục (ID)</span>
+                <span>Mã ID</span>
                 <span className="text-[10px] text-zinc-400 font-normal lowercase tracking-normal bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">Tự động</span>
               </label>
               <input
@@ -181,11 +185,25 @@ export default function CategoryFormModal({
                 disabled
                 value={id}
                 placeholder="VD: C-05"
-                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/80 px-3.5 py-2.5 text-sm text-zinc-600 dark:text-zinc-300 outline-none font-mono cursor-not-allowed"
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/80 px-3 py-2.5 text-sm text-zinc-600 dark:text-zinc-300 outline-none font-mono cursor-not-allowed"
               />
             </div>
 
-            <div className="sm:col-span-8">
+            <div className="sm:col-span-3">
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1.5 flex items-center justify-between">
+                <span>Thứ tự</span>
+                <span className="text-[10px] text-zinc-400 font-normal lowercase tracking-normal bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 rounded">Tự động</span>
+              </label>
+              <input
+                type="number"
+                readOnly
+                disabled
+                value={order}
+                className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800/80 px-3 py-2.5 text-sm text-zinc-600 dark:text-zinc-300 outline-none font-mono font-bold cursor-not-allowed"
+              />
+            </div>
+
+            <div className="sm:col-span-6">
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1.5">
                 Tên danh mục <span className="text-rose-500">*</span>
               </label>

@@ -1,6 +1,5 @@
-import { Category, CATEGORIES } from "@/data/categories";
-import { Product, PRODUCTS } from "@/data/products";
-import { CATEGORY_PRODUCTS } from "@/data/categoryProducts";
+import { Category } from "@/data/categories";
+import { Product } from "@/data/products";
 import { supabaseService } from "./supabaseService";
 
 export interface CategoryStats {
@@ -38,11 +37,10 @@ export const categoryService = {
    */
   async getCategories(): Promise<Category[]> {
     try {
-      const data = await supabaseService.getCategories();
-      return data.length > 0 ? data : CATEGORIES;
+      return await supabaseService.getCategories();
     } catch (err) {
-      console.warn("[categoryService] Fallback to local categories due to Supabase error:", err);
-      return CATEGORIES;
+      console.error("[categoryService] Lỗi khi lấy danh mục từ Supabase:", err);
+      return [];
     }
   },
 
@@ -74,97 +72,110 @@ export const categoryService = {
     return await supabaseService.bulkUpsertCategories(categories);
   },
 
-  // ==========================================================================
-  // SYNCHRONOUS / STATIC HELPER METHODS (Static Generation & Fallback)
-  // ==========================================================================
-
   /**
-   * Lấy danh sách toàn bộ danh mục đồng bộ (dùng cho generateStaticParams / render)
+   * Lấy chi tiết danh mục theo ID từ Supabase Cloud
    */
-  getAllCategories(): Category[] {
-    return CATEGORIES;
+  async getCategoryById(id: string): Promise<Category | null> {
+    if (!id) return null;
+    try {
+      const categories = await supabaseService.getCategories();
+      const targetId = id.trim().toLowerCase();
+      const targetNum = normalizeId(id);
+
+      const direct = categories.find(
+        (cat) =>
+          cat.id.toLowerCase() === targetId ||
+          normalizeId(cat.id) === targetNum ||
+          normalize(cat.name) === normalize(id)
+      );
+      if (direct) return direct;
+
+      // Fallback alias matching
+      const targetSlug = normalize(id);
+      if (targetSlug.includes("me") && targetSlug.includes("be")) {
+        return categories.find((c) => c.id === "C-03") || null;
+      }
+      if (targetSlug.includes("mat")) {
+        return categories.find((c) => c.id === "C-04") || null;
+      }
+      if (
+        targetSlug.includes("ca-nhan") ||
+        targetSlug.includes("personal") ||
+        targetSlug.includes("rang") ||
+        targetSlug.includes("mieng")
+      ) {
+        return categories.find((c) => c.id === "C-01") || null;
+      }
+      if (
+        targetSlug.includes("thuc-pham") ||
+        targetSlug.includes("bo-sung") ||
+        targetSlug.includes("tpcn") ||
+        targetSlug.includes("chuc-nang")
+      ) {
+        return categories.find((c) => c.id === "C-02") || null;
+      }
+      if (targetSlug.includes("gia-dung") || targetSlug.includes("do-gia-dung")) {
+        return categories.find((c) => c.id === "C-05") || null;
+      }
+
+      return null;
+    } catch (err) {
+      console.error(`[categoryService] Lỗi getCategoryById(${id}):`, err);
+      return null;
+    }
   },
 
   /**
-   * Lấy chi tiết danh mục theo ID (ví dụ: "C-01", "c-01", "1")
+   * Lấy chi tiết danh mục theo tên từ Supabase Cloud
    */
-  getCategoryById(id: string): Category | undefined {
-    if (!id) return undefined;
-    const targetId = id.trim().toLowerCase();
-    const targetNum = normalizeId(id);
-
-    const direct = CATEGORIES.find(
-      (cat) =>
-        cat.id.toLowerCase() === targetId ||
-        normalizeId(cat.id) === targetNum ||
-        normalize(cat.name) === normalize(id)
-    );
-    if (direct) return direct;
-
-    // Fallback alias matching
-    const targetSlug = normalize(id);
-    if (targetSlug.includes("me") && targetSlug.includes("be")) {
-      return CATEGORIES.find((c) => c.id === "C-03");
+  async getCategoryByName(name: string): Promise<Category | null> {
+    if (!name) return null;
+    try {
+      const categories = await supabaseService.getCategories();
+      const targetName = normalize(name);
+      return categories.find((cat) => normalize(cat.name) === targetName) || null;
+    } catch (err) {
+      console.error(`[categoryService] Lỗi getCategoryByName(${name}):`, err);
+      return null;
     }
-    if (targetSlug.includes("mat")) {
-      return CATEGORIES.find((c) => c.id === "C-04");
-    }
-    if (
-      targetSlug.includes("ca-nhan") ||
-      targetSlug.includes("personal") ||
-      targetSlug.includes("rang") ||
-      targetSlug.includes("mieng")
-    ) {
-      return CATEGORIES.find((c) => c.id === "C-01");
-    }
-    if (
-      targetSlug.includes("thuc-pham") ||
-      targetSlug.includes("bo-sung") ||
-      targetSlug.includes("tpcn") ||
-      targetSlug.includes("chuc-nang")
-    ) {
-      return CATEGORIES.find((c) => c.id === "C-02");
-    }
-    if (targetSlug.includes("gia-dung") || targetSlug.includes("do-gia-dung")) {
-      return CATEGORIES.find((c) => c.id === "C-05");
-    }
-
-    return undefined;
   },
 
   /**
-   * Lấy chi tiết danh mục theo tên
+   * Lấy danh sách sản phẩm thuộc danh mục dựa theo Category ID từ Supabase Cloud
    */
-  getCategoryByName(name: string): Category | undefined {
-    if (!name) return undefined;
-    const targetName = normalize(name);
-    return CATEGORIES.find((cat) => normalize(cat.name) === targetName);
-  },
-
-  /**
-   * Lấy danh sách sản phẩm thuộc danh mục dựa theo Category ID
-   */
-  getProductsByCategoryId(categoryId: string): Product[] {
+  async getProductsByCategoryId(categoryId: string): Promise<Product[]> {
     if (!categoryId) return [];
-    const targetId = categoryId.trim().toLowerCase();
-    const targetNum = normalizeId(categoryId);
+    try {
+      const [products, mappings] = await Promise.all([
+        supabaseService.getProducts(),
+        supabaseService.getCategoryProducts(),
+      ]);
 
-    const matchedProductIds = new Set(
-      CATEGORY_PRODUCTS.filter(
-        (cp) =>
-          cp.categoryId.toLowerCase() === targetId ||
-          normalizeId(cp.categoryId) === targetNum
-      ).map((cp) => cp.productId)
-    );
+      const targetId = categoryId.trim().toLowerCase();
+      const targetNum = normalizeId(categoryId);
 
-    return PRODUCTS.filter((product) => matchedProductIds.has(product.id));
+      const matchedProductIds = new Set(
+        mappings
+          .filter(
+            (cp) =>
+              cp.categoryId.toLowerCase() === targetId ||
+              normalizeId(cp.categoryId) === targetNum
+          )
+          .map((cp) => cp.productId)
+      );
+
+      return products.filter((product) => matchedProductIds.has(product.id));
+    } catch (err) {
+      console.error(`[categoryService] Lỗi getProductsByCategoryId(${categoryId}):`, err);
+      return [];
+    }
   },
 
   /**
-   * Thống kê tổng hợp số liệu của danh mục
+   * Thống kê tổng hợp số liệu của danh mục từ Supabase Cloud
    */
-  getCategoryStats(categoryId: string): CategoryStats {
-    const prods = this.getProductsByCategoryId(categoryId);
+  async getCategoryStats(categoryId: string): Promise<CategoryStats> {
+    const prods = await this.getProductsByCategoryId(categoryId);
     if (prods.length === 0) {
       return {
         totalProducts: 0,

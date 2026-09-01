@@ -49,7 +49,7 @@ export default function CategoryManagement() {
     addCategory,
     updateCategory,
     deleteCategory,
-    resetCategoriesToDefault,
+    moveCategoryOrder,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -66,11 +66,12 @@ export default function CategoryManagement() {
     return map;
   }, [categoryProducts]);
 
-  // Filtered categories
+  // Filtered and sorted categories
   const filteredCategories = useMemo(() => {
+    const list = [...categories].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return categories;
-    return categories.filter(
+    if (!q) return list;
+    return list.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.id.toLowerCase().includes(q) ||
@@ -142,16 +143,6 @@ export default function CategoryManagement() {
             <PlusIcon className="h-4 w-4" />
             Thêm danh mục mới
           </button>
-          <button
-            onClick={() => {
-              if (window.confirm("Khôi phục toàn bộ danh mục và phân loại về cấu hình mặc định ban đầu?")) {
-                resetCategoriesToDefault();
-              }
-            }}
-            className="inline-flex items-center gap-1.5 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/30 px-3.5 py-2.5 text-sm font-semibold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-950 transition-colors cursor-pointer"
-          >
-            🔄 Khôi phục gốc
-          </button>
         </div>
       </div>
 
@@ -213,88 +204,143 @@ export default function CategoryManagement() {
         </div>
       </div>
 
-      {/* Category Grid Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-5">
-        {filteredCategories.map((cat) => {
-          const productCount = categoryProductCountMap.get(cat.id) || 0;
+      {/* Categories Table List View */}
+      <div className="overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 shadow-sm">
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-sm">
+            <thead className="border-b border-zinc-200 dark:border-zinc-800 bg-zinc-50/80 dark:bg-zinc-950/60 text-xs font-bold uppercase tracking-wider text-zinc-600 dark:text-zinc-400">
+              <tr>
+                <th className="py-4 px-4 sm:px-6 w-28 text-center">Thứ tự</th>
+                <th className="py-4 px-4 sm:px-6">Danh mục</th>
+                <th className="py-4 px-4 sm:px-6 hidden md:table-cell">Mô tả</th>
+                <th className="py-4 px-4 sm:px-6 text-center">Số sản phẩm</th>
+                <th className="py-4 px-4 sm:px-6 hidden lg:table-cell">Chủ đề màu</th>
+                <th className="py-4 px-4 sm:px-6 text-right">Thao tác</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
+              {filteredCategories.length === 0 ? (
+                <tr>
+                  <td colSpan={6} className="py-12 text-center text-zinc-400">
+                    Không tìm thấy danh mục nào phù hợp.
+                  </td>
+                </tr>
+              ) : (
+                filteredCategories.map((cat, index) => {
+                  const productCount = categoryProductCountMap.get(cat.id) || 0;
 
-          return (
-            <div
-              key={cat.id}
-              className="group relative overflow-hidden rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-6 shadow-sm hover:shadow-md transition-all flex flex-col justify-between"
-            >
-              {/* Background gradient hint */}
-              <div
-                className={`absolute -right-8 -bottom-8 h-32 w-32 rounded-full bg-gradient-to-br ${cat.bannerGradient} opacity-10 group-hover:scale-125 transition-transform duration-500`}
-              />
+                  return (
+                    <tr
+                      key={cat.id}
+                      className="hover:bg-zinc-50/70 dark:hover:bg-zinc-800/40 transition-colors group"
+                    >
+                      {/* 1. Order Column */}
+                      <td className="py-4 px-4 sm:px-6 text-center">
+                        <span className="inline-flex items-center justify-center font-mono text-xs font-bold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200/60 dark:border-zinc-700/60">
+                          #{cat.order || index + 1}
+                        </span>
+                      </td>
 
-              <div>
-                {/* Top Row: Icon + ID + Product Count */}
-                <div className="flex items-center justify-between mb-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex h-11 w-11 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 shadow-xs">
-                      {renderCategoryIcon(cat.iconName || "SparklesIcon")}
-                    </div>
-                    <div>
-                      <span className="font-mono text-xs font-bold text-zinc-400">
-                        #{cat.id}
-                      </span>
-                      <h3 className="font-bold text-base text-zinc-900 dark:text-white leading-tight">
-                        {cat.name}
-                      </h3>
-                    </div>
-                  </div>
+                      {/* 2. Category Info */}
+                      <td className="py-4 px-4 sm:px-6">
+                        <div className="flex items-center gap-3.5">
+                          <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-2xl bg-indigo-50 dark:bg-indigo-950/60 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900 shadow-2xs">
+                            {renderCategoryIcon(cat.iconName || "SparklesIcon")}
+                          </div>
+                          <div>
+                            <h3 className="font-bold text-sm sm:text-base text-zinc-900 dark:text-white leading-tight">
+                              {cat.name}
+                            </h3>
+                            <Link
+                              href={`/category/${cat.id}`}
+                              target="_blank"
+                              className="text-xs font-mono text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1 mt-0.5"
+                            >
+                              /category/{cat.id} ↗
+                            </Link>
+                          </div>
+                        </div>
+                      </td>
 
-                  <span
-                    className={`inline-flex items-center px-2.5 py-1 rounded-full text-xs font-bold ${
-                      productCount > 0
-                        ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400"
-                        : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400"
-                    }`}
-                  >
-                    {productCount} sản phẩm
-                  </span>
-                </div>
+                      {/* 3. Description */}
+                      <td className="py-4 px-4 sm:px-6 hidden md:table-cell max-w-sm">
+                        <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed">
+                          {cat.description || "(Chưa có mô tả)"}
+                        </p>
+                      </td>
 
-                {/* Category ID Link */}
-                <p className="text-xs font-mono text-indigo-600 dark:text-indigo-400 mb-2">
-                  /category/{cat.id}
-                </p>
+                      {/* 4. Product Count */}
+                      <td className="py-4 px-4 sm:px-6 text-center">
+                        <span
+                          className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-bold ${
+                            productCount > 0
+                              ? "bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 border border-indigo-100 dark:border-indigo-900/60"
+                              : "bg-amber-50 dark:bg-amber-950 text-amber-600 dark:text-amber-400 border border-amber-100 dark:border-amber-900/60"
+                          }`}
+                        >
+                          {productCount} SP
+                        </span>
+                      </td>
 
-                {/* Description */}
-                <p className="text-xs text-zinc-500 dark:text-zinc-400 line-clamp-2 leading-relaxed mb-4">
-                  {cat.description || "(Chưa có mô tả cho danh mục này)"}
-                </p>
-              </div>
+                      {/* 5. Color / Gradient Theme */}
+                      <td className="py-4 px-4 sm:px-6 hidden lg:table-cell">
+                        <div className="flex items-center gap-2">
+                          <span
+                            className={`h-5 w-12 rounded-lg bg-gradient-to-r ${cat.bannerGradient} shadow-2xs shrink-0`}
+                          />
+                        </div>
+                      </td>
 
-              {/* Action Buttons */}
-              <div className="flex items-center justify-between pt-4 border-t border-zinc-100 dark:border-zinc-800 z-10">
-                <Link
-                  href={`/category/${cat.id}`}
-                  target="_blank"
-                  className="text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:underline inline-flex items-center gap-1"
-                >
-                  👁 Xem trang danh mục
-                </Link>
-
-                <div className="flex items-center gap-2">
-                  <button
-                    onClick={() => handleOpenEdit(cat)}
-                    className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-1.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
-                  >
-                    ✏️ Sửa thông tin
-                  </button>
-                  <button
-                    onClick={() => handleDelete(cat.id, cat.name)}
-                    className="rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/40 px-3 py-1.5 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
-                  >
-                    🗑 Xóa
-                  </button>
-                </div>
-              </div>
-            </div>
-          );
-        })}
+                      {/* 6. Action Buttons */}
+                      <td className="py-4 px-4 sm:px-6 text-right">
+                        <div className="flex items-center justify-end gap-1.5">
+                          <button
+                            type="button"
+                            onClick={() => moveCategoryOrder(cat.id, "up")}
+                            disabled={index === 0}
+                            title="Chuyển lên trên"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          >
+                            ▲
+                          </button>
+                          <button
+                            type="button"
+                            onClick={() => moveCategoryOrder(cat.id, "down")}
+                            disabled={index === filteredCategories.length - 1}
+                            title="Chuyển xuống dưới"
+                            className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                          >
+                            ▼
+                          </button>
+                          <Link
+                            href={`/category/${cat.id}`}
+                            target="_blank"
+                            className="hidden sm:inline-flex items-center h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors"
+                            title="Xem trang danh mục ngoài website"
+                          >
+                            👁 Xem
+                          </Link>
+                          <button
+                            onClick={() => handleOpenEdit(cat)}
+                            className="h-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 text-xs font-bold text-indigo-600 dark:text-indigo-400 hover:bg-indigo-50 dark:hover:bg-indigo-950/60 transition-colors cursor-pointer"
+                          >
+                            ✏️ Sửa
+                          </button>
+                          <button
+                            onClick={() => handleDelete(cat.id, cat.name)}
+                            className="h-8 rounded-xl border border-rose-200 dark:border-rose-900/60 bg-rose-50/50 dark:bg-rose-950/40 px-3 text-xs font-bold text-rose-600 dark:text-rose-400 hover:bg-rose-100 dark:hover:bg-rose-900/80 transition-colors cursor-pointer"
+                          >
+                            🗑 Xóa
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  );
+                })
+              )}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {/* Category Modal with 2-Column Layout */}

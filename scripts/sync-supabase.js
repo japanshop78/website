@@ -64,18 +64,32 @@ async function sync() {
   console.log(`📦 Reading local data: ${categories.length} categories, ${products.length} products, ${categoryProducts.length} mappings, ${orders.length} orders.`);
 
   // 1. Categories
-  const dbCategories = categories.map(c => ({
-    id: c.id,
-    slug: c.id.toLowerCase(),
-    name: c.name,
-    description: c.description || '',
-    banner_gradient: c.bannerGradient || 'from-indigo-600 to-violet-700',
-    badge_color: c.badgeColor || 'bg-indigo-500',
-    icon_name: c.iconName || 'SparklesIcon',
-    item_count_text: c.itemCountText || '0 sản phẩm',
-    subcategories: c.subcategories || [],
-  }));
-  await postBatch('categories?on_conflict=id', dbCategories);
+  const dbCategories = categories.map((c, idx) => {
+    const numMatch = c.id.match(/\d+/);
+    const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : idx + 1;
+    return {
+      id: c.id,
+      slug: c.id.toLowerCase(),
+      name: c.name,
+      description: c.description || '',
+      banner_gradient: c.bannerGradient || 'from-indigo-600 to-violet-700',
+      badge_color: c.badgeColor || 'bg-indigo-500',
+      icon_name: c.iconName || 'SparklesIcon',
+      item_count_text: c.itemCountText || '0 sản phẩm',
+      subcategories: c.subcategories || [],
+      order_num: c.order !== undefined ? Number(c.order) : defaultOrder,
+    };
+  });
+  try {
+    await postBatch('categories?on_conflict=id', dbCategories);
+  } catch (err) {
+    if (err.message && err.message.includes('order_num')) {
+      const fallbackCats = dbCategories.map(({ order_num, ...rest }) => rest);
+      await postBatch('categories?on_conflict=id', fallbackCats);
+    } else {
+      throw err;
+    }
+  }
   console.log(`✅ Synced ${dbCategories.length} categories.`);
 
   // 2. Products
@@ -119,11 +133,21 @@ async function sync() {
     headers: headers
   });
 
-  const dbCatProd = categoryProducts.map(cp => ({
+  const dbCatProd = categoryProducts.map((cp, idx) => ({
     category_id: cp.categoryId,
     product_id: cp.productId,
+    order_num: typeof cp.order === 'number' ? cp.order : idx + 1,
   }));
-  await postBatch('category_products', dbCatProd, 100);
+  try {
+    await postBatch('category_products', dbCatProd, 100);
+  } catch (err) {
+    if (err.message && err.message.includes('order_num')) {
+      const fallbackCatProd = dbCatProd.map(({ order_num, ...rest }) => rest);
+      await postBatch('category_products', fallbackCatProd, 100);
+    } else {
+      throw err;
+    }
+  }
   console.log(`✅ Synced ${dbCatProd.length} category mappings.`);
 
   // 4. Orders
