@@ -912,6 +912,11 @@ export default function FeaturedManagement() {
                             {product.tag}
                           </span>
                         )}
+                        {product.oldPrice && product.oldPrice > product.price && (
+                          <span className="absolute top-3 right-3 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold shadow-xs z-10">
+                            -{calcDiscount(product.price, product.oldPrice)}%
+                          </span>
+                        )}
                       </div>
 
                       <div className="mt-4 flex justify-between items-start">

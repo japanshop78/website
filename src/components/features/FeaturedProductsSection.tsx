@@ -7,9 +7,12 @@ import { Product } from "@/data/products";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
-import { StarIcon, PlusIcon, CheckIcon, ChevronRightIcon } from "@/components/icons";
+import { StarIcon, PlusIcon, CheckIcon } from "@/components/icons";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
+
+const calcDiscount = (price: number, oldPrice: number) =>
+  Math.round(((oldPrice - price) / oldPrice) * 100);
 
 export default function FeaturedProductsSection() {
   const { getFeaturedProducts, getCategoryIdByProductId, categories } = useProductData();
@@ -46,6 +49,10 @@ export default function FeaturedProductsSection() {
             const isJustAdded = addedId === product.id;
 
             const primaryImage = product.images?.[0] || "";
+            const discount =
+              product.oldPrice && product.oldPrice > product.price
+                ? calcDiscount(product.price, product.oldPrice)
+                : null;
 
             return (
               <div key={product.id} className="group relative flex flex-col justify-between">
@@ -67,6 +74,18 @@ export default function FeaturedProductsSection() {
                           {categoryName}
                         </span>
                       </div>
+                    )}
+
+                    {product.tag && (
+                      <span className="absolute top-2.5 left-2.5 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2 py-0.5 text-xs font-semibold shadow-xs z-10">
+                        {product.tag}
+                      </span>
+                    )}
+
+                    {discount && (
+                      <span className="absolute top-2.5 right-2.5 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold shadow-xs z-10">
+                        -{discount}%
+                      </span>
                     )}
                   </div>
 

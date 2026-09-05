@@ -165,8 +165,8 @@ export default function ProductDetailPage({ product, related }: Props) {
               )}
 
               {discount && (
-                <span className="absolute top-5 right-5 rounded-full bg-rose-600 text-white px-3 py-1.5 text-sm font-bold shadow-md z-10">
-                  -{discount}%
+                <span className="absolute top-5 right-5 rounded-full bg-rose-600 text-white px-3.5 py-1.5 text-sm font-bold shadow-md z-10">
+                  Giảm giá -{discount}%
                 </span>
               )}
             </div>
@@ -363,6 +363,11 @@ export default function ProductDetailPage({ product, related }: Props) {
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {currentRelated.map((p) => {
                 const relatedImg = p.images?.[0] || "";
+                const relatedDiscount =
+                  p.oldPrice && p.oldPrice > p.price
+                    ? calcDiscount(p.price, p.oldPrice)
+                    : null;
+
                 return (
                   <Link
                     key={p.id}
@@ -385,8 +390,13 @@ export default function ProductDetailPage({ product, related }: Props) {
                       </span>
                     </div>
                     {p.tag && (
-                      <span className="absolute top-2.5 left-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-10">
+                      <span className="absolute top-2.5 left-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-20">
                         {p.tag}
+                      </span>
+                    )}
+                    {relatedDiscount && (
+                      <span className="absolute top-2.5 right-2.5 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold shadow-xs z-20">
+                        -{relatedDiscount}%
                       </span>
                     )}
                   </div>
