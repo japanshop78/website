@@ -165,8 +165,8 @@ export default function ProductDetailPage({ product, related }: Props) {
               )}
 
               {discount && (
-                <span className="absolute top-5 right-5 rounded-full bg-rose-600 text-white px-3.5 py-1.5 text-sm font-bold shadow-md z-10">
-                  Giảm giá -{discount}%
+                <span className="absolute top-5 left-5 w-12 h-12 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
+                  -{discount}%
                 </span>
               )}
             </div>
@@ -390,12 +390,12 @@ export default function ProductDetailPage({ product, related }: Props) {
                       </span>
                     </div>
                     {p.tag && (
-                      <span className="absolute top-2.5 left-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-20">
+                      <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-20">
                         {p.tag}
                       </span>
                     )}
                     {relatedDiscount && (
-                      <span className="absolute top-2.5 right-2.5 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold shadow-xs z-20">
+                      <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-20">
                         -{relatedDiscount}%
                       </span>
                     )}
