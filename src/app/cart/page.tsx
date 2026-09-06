@@ -109,7 +109,7 @@ export default function CartPage() {
 
   return (
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 py-6 sm:py-10">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
         <div className="mb-6">
           <Breadcrumb

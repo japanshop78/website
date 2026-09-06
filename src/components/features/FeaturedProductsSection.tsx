@@ -109,7 +109,7 @@ export default function FeaturedProductsSection() {
 
   return (
     <section className="bg-zinc-50/80 dark:bg-zinc-950/60 py-16 sm:py-24 border-t border-zinc-200/80 dark:border-zinc-800/80 relative overflow-hidden">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         {/* Header with Title and Navigation */}
         <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-8 sm:mb-12">
           <div>

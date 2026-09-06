@@ -83,7 +83,7 @@ export default function ProductDetailPage({ product, related }: Props) {
   return (
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       {/* Breadcrumb */}
-      <div className="mx-auto max-w-7xl px-4 py-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
         <Breadcrumb
           items={[
             { label: "Trang chủ", href: "/" },
@@ -94,7 +94,7 @@ export default function ProductDetailPage({ product, related }: Props) {
       </div>
 
       {/* Main Content */}
-      <div className="mx-auto max-w-7xl px-4 pb-16 sm:px-6 lg:px-8">
+      <div className="w-full px-4 pb-16 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
           {/* Product Image & Gallery Slider */}
           <div className="flex flex-col gap-4">

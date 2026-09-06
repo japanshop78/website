@@ -13,7 +13,7 @@ export default function Footer() {
 
   return (
     <footer className="w-full border-t border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
+      <div className="w-full px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-3 lg:grid-cols-4">
           {/* Logo & Intro */}
           <div className="md:col-span-2">
@@ -28,14 +28,14 @@ export default function Footer() {
               </div>
               <span>Japan Shop</span>
             </Link>
-            <p className="max-w-sm text-sm text-zinc-500 dark:text-zinc-400 leading-6">
-              Chúng tôi cung cấp các sản phẩm nội địa Nhật Bản chất lượng cao 100% chính hãng với dịch vụ khách hàng tốt nhất. Trải nghiệm mua sắm tuyệt vời cùng Japan Shop.
-            </p>
+            <p className="max-w-sm text-base text-zinc-500 dark:text-zinc-400 leading-6">
+              Cam kết 100% sản phẩm chính hãng nội địa Nhật
+              </p>
           </div>
 
           {/* Categories Quick Links */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
               Danh mục
             </h3>
             <ul className="space-y-2">
@@ -43,7 +43,7 @@ export default function Footer() {
                 <li key={item.id}>
                   <Link
                     href={`/category/${item.id}`}
-                    className="text-sm text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
+                    className="text-base text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
                   >
                     {item.name}
                   </Link>
@@ -54,10 +54,10 @@ export default function Footer() {
 
           {/* Contact Info */}
           <div>
-            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
               Liên hệ
             </h3>
-            <ul className="space-y-3 text-sm text-zinc-500 dark:text-zinc-400">
+            <ul className="space-y-3 text-base text-zinc-500 dark:text-zinc-400">
               <li className="flex items-start gap-2">
                 <LocationIcon className="mt-0.5 h-4 w-4 shrink-0 text-zinc-400" />
                 <span>1017/26/18 Lê Văn Lương (90A đường B7, khu B, làng đại học), Ấp 3, Nhà Bè, Hồ Chí Minh, Vietnam</span>
