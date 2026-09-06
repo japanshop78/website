@@ -21,10 +21,34 @@ const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 const calcDiscount = (price: number, oldPrice: number) =>
   Math.round(((oldPrice - price) / oldPrice) * 100);
 
+function getTimeUntilMidnight() {
+  const now = new Date();
+  const midnight = new Date(now);
+  midnight.setHours(23, 59, 59, 999);
+  const diff = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
+  const hours = Math.floor(diff / 3600);
+  const minutes = Math.floor((diff % 3600) / 60);
+  const seconds = diff % 60;
+  return { hours, minutes, seconds };
+}
+
+const formatTime = (num: number) => String(num).padStart(2, "0");
+
 export default function DiscountedProductsSection() {
   const { getProductsByBanner, getCategoryIdByProductId, categories } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
+
+  // Countdown timer state
+  const [timeLeft, setTimeLeft] = useState({ hours: 5, minutes: 24, seconds: 18 });
+
+  useEffect(() => {
+    setTimeLeft(getTimeUntilMidnight());
+    const timer = setInterval(() => {
+      setTimeLeft(getTimeUntilMidnight());
+    }, 1000);
+    return () => clearInterval(timer);
+  }, []);
 
   // Filter products by banner "discount" (or "Sản phẩm giảm giá")
   const discountedProducts = getProductsByBanner("discount", 15);
@@ -117,16 +141,65 @@ export default function DiscountedProductsSection() {
 
   return (
     <section className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 py-12 sm:py-16 text-white relative overflow-hidden shadow-inner">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
-        {/* Header with Title and Navigation */}
-        <div className="flex flex-col sm:flex-row sm:items-end sm:justify-between mb-8">
+      {/* Ambient Background Glow Orbs */}
+      <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-400/25 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-48 bg-white/5 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full px-4 sm:px-6 lg:px-8 relative z-10">
+        {/* Header with Title, Countdown Timer and Controls */}
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
           <div>
-            <h2 className="text-3xl font-extrabold tracking-tight uppercase text-white sm:text-4xl">
-              Ưu đãi hot
-            </h2>
+            <div className="flex flex-wrap items-center gap-3">
+              <h2 className="text-3xl font-extrabold tracking-tight uppercase text-white sm:text-4xl flex items-center gap-2">
+                <span>Ưu đãi hot</span>
+                <span className="text-2xl sm:text-3xl animate-pulse">🔥</span>
+              </h2>
+
+              {/* Countdown Timer */}
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg">
+                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                  <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
+                  <span className="hidden sm:inline">Kết thúc trong:</span>
+                </span>
+                <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white">
+                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                    {formatTime(timeLeft.hours)}
+                  </span>
+                  <span className="text-amber-300 font-bold">:</span>
+                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                    {formatTime(timeLeft.minutes)}
+                  </span>
+                  <span className="text-amber-300 font-bold">:</span>
+                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                    {formatTime(timeLeft.seconds)}
+                  </span>
+                </div>
+              </div>
+            </div>
             <p className="mt-2 text-sm text-rose-100/90 max-w-xl">
-              Cơ hội mua hàng nội địa Nhật Bản chất lượng cao với mức giá ưu đãi tốt nhất
+              Cơ hội săn hàng nội địa Nhật Bản chính hãng với mức giá giảm sâu số lượng có hạn
             </p>
+          </div>
+
+          {/* Navigation Controls in Header */}
+          <div className="hidden sm:flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handlePrev}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30 shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+              aria-label="Xem sản phẩm trước"
+            >
+              <ChevronLeftIcon className="h-5 w-5" />
+            </button>
+            <button
+              type="button"
+              onClick={handleNext}
+              className="flex h-10 w-10 items-center justify-center rounded-full bg-white/20 hover:bg-white/30 text-white backdrop-blur-sm border border-white/30 shadow-sm transition-all cursor-pointer hover:scale-105 active:scale-95"
+              aria-label="Xem sản phẩm tiếp theo"
+            >
+              <ChevronRightIcon className="h-5 w-5" />
+            </button>
           </div>
         </div>
 
@@ -157,7 +230,7 @@ export default function DiscountedProductsSection() {
           </button>
 
           {/* Slider Viewport */}
-          <div className="overflow-hidden py-2 -mx-2 sm:-mx-2.5">
+          <div className="overflow-hidden py-3 -mx-2 sm:-mx-2.5">
             {/* Sliding Track */}
             <div
               className="flex items-stretch"
@@ -181,13 +254,23 @@ export default function DiscountedProductsSection() {
                     ? calcDiscount(product.price, product.oldPrice)
                     : null;
 
+                // Deterministic stock calculations for realism
+                const numId = parseInt(product.id, 10) || 1;
+                const totalStock = 25 + (numId % 20);
+                const soldCount = Math.min(totalStock - 2, 12 + ((numId * 7) % 18));
+                const percentSold = Math.min(100, Math.round((soldCount / totalStock) * 100));
+                const isHot = percentSold >= 80;
+
                 return (
                   <div
                     key={`${product.id}-${idx}`}
                     className="shrink-0 px-2 sm:px-2.5 flex flex-col"
                     style={{ width: `${100 / itemsPerView}%` }}
                   >
-                    <div className="group relative flex flex-col justify-between h-full rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/60 dark:border-zinc-800 p-3.5 shadow-sm hover:shadow-xl transition-all duration-300 text-zinc-900 dark:text-white">
+                    <div className="group relative flex flex-col justify-between h-full rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/70 dark:border-zinc-800 p-3.5 shadow-sm hover:shadow-2xl hover:-translate-y-1.5 transition-all duration-300 text-zinc-900 dark:text-white overflow-hidden">
+                      {/* Shimmer Light Sweep Effect on Hover */}
+                      <div className="absolute inset-0 -translate-x-full group-hover:translate-x-full transition-transform duration-1000 ease-out bg-gradient-to-r from-transparent via-white/20 dark:via-white/10 to-transparent pointer-events-none z-20" />
+
                       <div>
                         {/* Image Container */}
                         <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-800 p-2">
@@ -197,7 +280,7 @@ export default function DiscountedProductsSection() {
                               alt={product.name}
                               fill
                               loading="lazy"
-                              className="object-contain p-1 group-hover:scale-105 transition-transform duration-500"
+                              className="object-contain p-1 group-hover:scale-108 transition-transform duration-500"
                               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                             />
                           ) : (
@@ -214,28 +297,29 @@ export default function DiscountedProductsSection() {
                             </span>
                           )}
 
+                          {/* Glowing Discount Badge */}
                           {discount && (
-                            <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
+                            <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-gradient-to-br from-rose-500 to-red-600 text-white text-xs font-black flex items-center justify-center shadow-lg shadow-rose-950/30 ring-2 ring-white/80 tracking-tight z-10 animate-pulse">
                               -{discount}%
                             </span>
                           )}
                         </div>
 
                         {/* Details */}
-                        <div className="mt-4 flex justify-between items-start">
+                        <div className="mt-3.5 flex justify-between items-start">
                           <div>
                             {categoryName && (
                               <span className="text-[11px] font-semibold uppercase tracking-wider text-indigo-600 dark:text-indigo-400 block mb-1">
                                 {categoryName}
                               </span>
                             )}
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2">
+                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                               <Link href={`/product/${product.id}`}>
                                 <span aria-hidden="true" className="absolute inset-0" />
                                 {product.name}
                               </Link>
                             </h3>
-                            <div className="mt-1.5 flex items-center gap-1 text-xs text-amber-500">
+                            <div className="mt-1 flex items-center gap-1 text-xs text-amber-500">
                               <StarIcon className="h-4 w-4 fill-current" />
                               <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                                 {product.rating}
@@ -246,34 +330,59 @@ export default function DiscountedProductsSection() {
                         </div>
                       </div>
 
-                      {/* Price & Action */}
-                      <div className="mt-4 flex items-center justify-between z-10">
-                        <div className="flex flex-col">
-                          <span className="text-xs text-zinc-400 line-through">
-                            {product.oldPrice && product.oldPrice > product.price
-                              ? formatPrice(product.oldPrice)
-                              : "\u00A0"}
-                          </span>
-                          <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                            {formatPrice(product.price)}
-                          </span>
+                      {/* Stock Progress Bar & Price Section */}
+                      <div className="mt-3">
+                        {/* Stock Progress Bar */}
+                        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mb-2.5">
+                          <div className="flex items-center justify-between text-[11px] font-bold mb-1">
+                            <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
+                              <span className="inline-block animate-bounce">🔥</span>
+                              <span>Đã bán:</span>
+                              <span className="font-extrabold text-zinc-900 dark:text-white">{soldCount}</span>
+                            </span>
+                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isHot ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "text-zinc-400"}`}>
+                              {isHot ? "Sắp hết" : `Còn ${totalStock - soldCount}`}
+                            </span>
+                          </div>
+                          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
+                            <div
+                              className="h-full rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 transition-all duration-500"
+                              style={{ width: `${percentSold}%` }}
+                            />
+                          </div>
                         </div>
-                        <button
-                          type="button"
-                          onClick={() => handleAdd(product)}
-                          className={`rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${
-                            isJustAdded
-                              ? "bg-emerald-600 text-white scale-110"
-                              : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-rose-600 dark:hover:bg-rose-500 hover:text-white"
-                          }`}
-                          title={isJustAdded ? "Đã thêm vào giỏ!" : "Thêm vào giỏ hàng"}
-                        >
-                          {isJustAdded ? (
-                            <CheckIcon className="h-5 w-5" />
-                          ) : (
-                            <PlusIcon className="h-5 w-5" />
-                          )}
-                        </button>
+
+                        {/* Price & Action */}
+                        <div className="flex items-center justify-between z-10">
+                          <div className="flex flex-col">
+                            {product.oldPrice && product.oldPrice > product.price ? (
+                              <span className="text-xs text-zinc-400 line-through">
+                                {formatPrice(product.oldPrice)}
+                              </span>
+                            ) : (
+                              <span className="text-xs text-transparent">{"\u00A0"}</span>
+                            )}
+                            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
+                              {formatPrice(product.price)}
+                            </span>
+                          </div>
+                          <button
+                            type="button"
+                            onClick={() => handleAdd(product)}
+                            className={`rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${
+                              isJustAdded
+                                ? "bg-emerald-600 text-white scale-110"
+                                : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow-rose-600/30 hover:scale-105 active:scale-95"
+                            }`}
+                            title={isJustAdded ? "Đã thêm vào giỏ!" : "Thêm vào giỏ hàng"}
+                          >
+                            {isJustAdded ? (
+                              <CheckIcon className="h-5 w-5" />
+                            ) : (
+                              <PlusIcon className="h-5 w-5" />
+                            )}
+                          </button>
+                        </div>
                       </div>
                     </div>
                   </div>
@@ -306,4 +415,5 @@ export default function DiscountedProductsSection() {
     </section>
   );
 }
+
 
