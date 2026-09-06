@@ -168,7 +168,7 @@ export default function CategoryDetailPage({
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 pb-20">
       {/* Breadcrumb */}
       <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
-        <div className="mx-auto max-w-7xl px-4 py-3 sm:px-6 lg:px-8">
+        <div className="w-full px-4 py-3 sm:px-6 lg:px-8">
           <Breadcrumb
             items={[
               { label: "Trang chủ", href: "/" },
@@ -186,7 +186,7 @@ export default function CategoryDetailPage({
         />
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
         
-        <div className="relative mx-auto max-w-7xl px-4 py-12 sm:px-6 lg:px-8 sm:py-16">
+        <div className="relative w-full px-4 py-12 sm:px-6 lg:px-8 sm:py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
@@ -259,7 +259,7 @@ export default function CategoryDetailPage({
       </div>
 
       {/* Main Content Area */}
-      <div className="mx-auto max-w-7xl px-4 pt-8 sm:px-6 lg:px-8">
+      <div className="w-full px-4 pt-8 sm:px-6 lg:px-8">
         {/* Controls Bar: Search, Filters, Sorting & View Toggle */}
         <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
           {/* Search inside category */}
@@ -469,7 +469,7 @@ export default function CategoryDetailPage({
                       )}
 
                       {discount && (
-                        <span className="absolute top-3 right-3 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold shadow-xs z-10">
+                        <span className="absolute top-3 left-3 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
                           -{discount}%
                         </span>
                       )}
@@ -571,7 +571,7 @@ export default function CategoryDetailPage({
                       </div>
                     )}
                     {discount && (
-                      <span className="absolute top-2.5 right-2.5 rounded-full bg-rose-600 text-white px-2 py-0.5 text-xs font-bold z-10">
+                      <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
                         -{discount}%
                       </span>
                     )}

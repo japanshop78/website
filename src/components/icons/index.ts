@@ -8,6 +8,7 @@ export { default as CloseIcon } from "./CloseIcon";
 export { default as LocationIcon } from "./LocationIcon";
 export { default as PhoneIcon } from "./PhoneIcon";
 export { default as MailIcon } from "./MailIcon";
+export { default as ChevronLeftIcon } from "./ChevronLeftIcon";
 export { default as ChevronRightIcon } from "./ChevronRightIcon";
 export { default as StarIcon } from "./StarIcon";
 export { default as PlusIcon } from "./PlusIcon";

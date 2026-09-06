@@ -908,8 +908,13 @@ export default function FeaturedManagement() {
                           </div>
                         )}
                         {product.tag && (
-                          <span className="absolute top-3 left-3 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2.5 py-1 text-xs font-semibold shadow-xs z-10">
+                          <span className="absolute top-3 right-3 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2.5 py-1 text-xs font-semibold shadow-xs z-10">
                             {product.tag}
+                          </span>
+                        )}
+                        {product.oldPrice && product.oldPrice > product.price && (
+                          <span className="absolute top-3 left-3 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
+                            -{calcDiscount(product.price, product.oldPrice)}%
                           </span>
                         )}
                       </div>
@@ -944,7 +949,7 @@ export default function FeaturedManagement() {
                             ? formatPrice(product.oldPrice)
                             : "\u00A0"}
                         </span>
-                        <span className="text-sm font-bold text-zinc-900 dark:text-white">
+                        <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
                           {formatPrice(product.price)}
                         </span>
                       </div>

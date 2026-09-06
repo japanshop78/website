@@ -42,7 +42,7 @@ export default function Header() {
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+      <div className="flex h-16 w-full items-center justify-between px-4 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-8">
           <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight text-zinc-900 dark:text-white">
@@ -64,7 +64,7 @@ export default function Header() {
               <Link
                 key={category.id || category.name}
                 href={`/category/${category.id}`}
-                className="text-sm font-medium text-zinc-600 transition-colors hover:text-indigo-600 dark:text-zinc-300 dark:hover:text-indigo-400"
+                className="text-base font-medium text-zinc-600 transition-colors hover:text-indigo-600 dark:text-zinc-300 dark:hover:text-indigo-400"
               >
                 {category.name}
               </Link>
@@ -152,7 +152,7 @@ export default function Header() {
                 placeholder="Tìm kiếm sản phẩm..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-4 pr-20 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
+                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-4 pr-20 text-base outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
               />
               <div className="absolute right-2 flex items-center gap-1">
                 <button
@@ -186,7 +186,7 @@ export default function Header() {
               placeholder="Tìm kiếm..."
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-full border border-zinc-200 bg-zinc-50 py-1.5 pl-4 pr-10 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-900"
+              className="w-full rounded-full border border-zinc-200 bg-zinc-50 py-1.5 pl-4 pr-10 text-base outline-none dark:border-zinc-800 dark:bg-zinc-900"
             />
             <button type="submit" className="absolute right-3 text-zinc-400">
               <SearchIcon className="h-4 w-4" />
@@ -199,7 +199,7 @@ export default function Header() {
                 key={category.id || category.name}
                 href={`/category/${category.id}`}
                 onClick={() => setIsMenuOpen(false)}
-                className="rounded-lg px-3 py-2 text-sm font-medium text-zinc-700 hover:bg-zinc-50 hover:text-indigo-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-indigo-400"
+                className="rounded-lg px-3 py-2 text-base font-medium text-zinc-700 hover:bg-zinc-50 hover:text-indigo-600 dark:text-zinc-300 dark:hover:bg-zinc-900 dark:hover:text-indigo-400"
               >
                 {category.name}
               </Link>
@@ -207,7 +207,7 @@ export default function Header() {
             <Link
               href="/admin"
               onClick={() => setIsMenuOpen(false)}
-              className="rounded-lg px-3 py-2 text-sm font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/40"
+              className="rounded-lg px-3 py-2 text-base font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/40"
             >
               ⚙️ Quản lý sản phẩm (Admin)
             </Link>
