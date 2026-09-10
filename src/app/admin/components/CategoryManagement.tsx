@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useEffect } from "react";
 import Link from "next/link";
 import { Category } from "@/data/categories";
 import { useProductData } from "@/context/ProductDataContext";
@@ -49,12 +49,26 @@ export default function CategoryManagement() {
     addCategory,
     updateCategory,
     deleteCategory,
-    moveCategoryOrder,
+    saveCategoryOrder,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+
+  // Local state for reordering categories before saving to Supabase
+  const [localCategories, setLocalCategories] = useState<Category[]>([]);
+  const [hasChanges, setHasChanges] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveToast, setSaveToast] = useState(false);
+
+  // Sync localCategories when context categories change and there are no pending changes
+  useEffect(() => {
+    if (!hasChanges) {
+      const sorted = [...categories].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      setLocalCategories(sorted);
+    }
+  }, [categories, hasChanges]);
 
   // Map category product counts
   const categoryProductCountMap = useMemo(() => {
@@ -66,18 +80,61 @@ export default function CategoryManagement() {
     return map;
   }, [categoryProducts]);
 
-  // Filtered and sorted categories
+  // Filtered and sorted categories from local state
   const filteredCategories = useMemo(() => {
-    const list = [...categories].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
     const q = searchQuery.toLowerCase().trim();
-    if (!q) return list;
-    return list.filter(
+    if (!q) return localCategories;
+    return localCategories.filter(
       (c) =>
         c.name.toLowerCase().includes(q) ||
         c.id.toLowerCase().includes(q) ||
         c.description.toLowerCase().includes(q)
     );
-  }, [categories, searchQuery]);
+  }, [localCategories, searchQuery]);
+
+  const handleMoveOrder = (catId: string, direction: "up" | "down") => {
+    const currentIndex = localCategories.findIndex((c) => c.id === catId);
+    if (currentIndex === -1) return;
+    const targetIndex = direction === "up" ? currentIndex - 1 : currentIndex + 1;
+    if (targetIndex < 0 || targetIndex >= localCategories.length) return;
+
+    const nextList = [...localCategories];
+    const [moved] = nextList.splice(currentIndex, 1);
+    nextList.splice(targetIndex, 0, moved);
+
+    // Re-assign order 1..N
+    const reordered = nextList.map((c, idx) => ({ ...c, order: idx + 1 }));
+    setLocalCategories(reordered);
+    setHasChanges(true);
+    setSaveToast(false);
+  };
+
+  const handleSaveChanges = async () => {
+    setIsSaving(true);
+    try {
+      const success = await saveCategoryOrder(localCategories);
+      if (success) {
+        setHasChanges(false);
+        setSaveToast(true);
+        setTimeout(() => setSaveToast(false), 4000);
+      } else {
+        alert("Có lỗi xảy ra khi lưu thứ tự danh mục. Vui lòng thử lại!");
+      }
+    } catch (err) {
+      console.error("Save error:", err);
+      alert("Lỗi khi lưu: " + (err instanceof Error ? err.message : String(err)));
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
+  const handleCancelChanges = () => {
+    if (window.confirm("Hủy các thay đổi thứ tự chưa lưu và quay lại ban đầu?")) {
+      const sorted = [...categories].sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      setLocalCategories(sorted);
+      setHasChanges(false);
+    }
+  };
 
   const handleOpenAdd = () => {
     setEditingCategory(null);
@@ -136,7 +193,47 @@ export default function CategoryManagement() {
         </div>
 
         <div className="flex flex-wrap items-center gap-2.5">
+          {hasChanges && (
+            <button
+              type="button"
+              onClick={handleCancelChanges}
+              disabled={isSaving}
+              className="inline-flex items-center gap-1.5 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3.5 py-2.5 text-xs font-bold text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer disabled:opacity-50"
+            >
+              Hủy thay đổi
+            </button>
+          )}
+
           <button
+            type="button"
+            onClick={handleSaveChanges}
+            disabled={!hasChanges || isSaving}
+            className={`inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-bold shadow-sm transition-all cursor-pointer ${
+              hasChanges
+                ? "bg-emerald-600 text-white hover:bg-emerald-500 ring-4 ring-emerald-500/20 scale-102"
+                : "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 dark:text-zinc-500 cursor-not-allowed opacity-70"
+            }`}
+          >
+            {isSaving ? (
+              <>
+                <svg className="animate-spin h-4 w-4 text-white" fill="none" viewBox="0 0 24 24">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z" />
+                </svg>
+                <span>Đang lưu...</span>
+              </>
+            ) : (
+              <>
+                <span>💾 Lưu thay đổi</span>
+                {hasChanges && (
+                  <span className="flex h-2 w-2 rounded-full bg-amber-300 animate-ping" />
+                )}
+              </>
+            )}
+          </button>
+
+          <button
+            type="button"
             onClick={handleOpenAdd}
             className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 px-4 py-2.5 text-sm font-bold text-white shadow-sm hover:bg-indigo-500 transition-colors cursor-pointer"
           >
@@ -145,6 +242,34 @@ export default function CategoryManagement() {
           </button>
         </div>
       </div>
+
+      {/* Save Success Toast */}
+      {saveToast && (
+        <div className="rounded-2xl border border-emerald-300 dark:border-emerald-800 bg-emerald-50 dark:bg-emerald-950/60 p-4 text-emerald-800 dark:text-emerald-300 flex items-center justify-between shadow-sm animate-in fade-in slide-in-from-top-2 duration-300">
+          <div className="flex items-center gap-2.5">
+            <span className="text-xl font-bold">✓</span>
+            <span className="text-sm font-bold">
+              Đã lưu thành công thứ tự danh mục lên hệ thống Supabase!
+            </span>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSaveToast(false)}
+            className="text-xs font-bold text-emerald-600 dark:text-emerald-400 hover:underline cursor-pointer"
+          >
+            Đóng
+          </button>
+        </div>
+      )}
+
+      {/* Unsaved Changes Banner */}
+      {hasChanges && (
+        <div className="rounded-2xl border border-amber-300 dark:border-amber-800/80 bg-amber-50 dark:bg-amber-950/40 px-4 py-3 text-amber-800 dark:text-amber-300 flex items-center justify-between shadow-xs">
+          <div className="flex items-center gap-2 text-xs sm:text-sm font-semibold">
+            <span>⚠️ Bạn có thay đổi thứ tự danh mục chưa lưu. Vui lòng bấm nút <strong>&quot;Lưu thay đổi&quot;</strong> ở góc trên bên phải để áp dụng.</span>
+          </div>
+        </div>
+      )}
 
       {/* Quick Stats Grid */}
       <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
@@ -296,18 +421,18 @@ export default function CategoryManagement() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => moveCategoryOrder(cat.id, "up")}
-                            disabled={index === 0}
-                            title="Chuyển lên trên"
+                            onClick={() => handleMoveOrder(cat.id, "up")}
+                            disabled={index === 0 || searchQuery.trim().length > 0}
+                            title={searchQuery.trim().length > 0 ? "Vui lòng xóa tìm kiếm để thay đổi thứ tự" : "Chuyển lên trên"}
                             className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
                           >
                             ▲
                           </button>
                           <button
                             type="button"
-                            onClick={() => moveCategoryOrder(cat.id, "down")}
-                            disabled={index === filteredCategories.length - 1}
-                            title="Chuyển xuống dưới"
+                            onClick={() => handleMoveOrder(cat.id, "down")}
+                            disabled={index === filteredCategories.length - 1 || searchQuery.trim().length > 0}
+                            title={searchQuery.trim().length > 0 ? "Vui lòng xóa tìm kiếm để thay đổi thứ tự" : "Chuyển xuống dưới"}
                             className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
                           >
                             ▼

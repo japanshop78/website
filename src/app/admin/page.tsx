@@ -8,13 +8,15 @@ import CategoryProductManagement from "./components/CategoryProductManagement";
 import ProductManagement from "./components/ProductManagement";
 import FeaturedManagement from "./components/FeaturedManagement";
 import DiscountManagement from "./components/DiscountManagement";
+import RakutenManagement from "./components/RakutenManagement";
 
 type AdminTab =
   | "categories"
   | "category_products"
   | "products"
   | "featured"
-  | "discount";
+  | "discount"
+  | "rakuten";
 
 const AUTH_STORAGE_KEY = "japan_shop_admin_authenticated_v1";
 const ADMIN_PASSKEY = process.env.NEXT_PUBLIC_ADMIN_PASSKEY || "japan2024";
@@ -258,6 +260,14 @@ export default function AdminPage() {
       count: discountedProducts.length,
       color: "rose",
       desc: "Chương trình khuyến mãi",
+    },
+    {
+      id: "rakuten" as AdminTab,
+      label: "Săn Sale Rakuten",
+      icon: "🎌",
+      count: "Auto",
+      color: "red",
+      desc: "Theo dõi giá & cảnh báo email",
     },
   ];
 
@@ -504,6 +514,7 @@ export default function AdminPage() {
               {activeTab === "category_products" && <CategoryProductManagement />}
               {activeTab === "featured" && <FeaturedManagement />}
               {activeTab === "discount" && <DiscountManagement />}
+              {activeTab === "rakuten" && <RakutenManagement />}
             </div>
           </main>
         </div>

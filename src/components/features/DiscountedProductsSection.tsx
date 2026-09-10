@@ -279,7 +279,8 @@ export default function DiscountedProductsSection() {
                               src={getAssetPath(primaryImage)}
                               alt={product.name}
                               fill
-                              loading="lazy"
+                              priority={idx < 5}
+                              loading={idx < 5 ? "eager" : "lazy"}
                               className="object-contain p-1 group-hover:scale-108 transition-transform duration-500"
                               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                             />
