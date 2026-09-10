@@ -1,0 +1,30 @@
+[
+  {
+    "id": "rakuten-1",
+    "name": "Gạo 30 loại ngũ cốc Tamachan Shop 300g",
+    "url": "https://item.rakuten.co.jp/kyunan/10000248/",
+    "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/kyunan/cabinet/item/10000248.jpg",
+    "currentPrice": 777,
+    "initialPrice": 1000,
+    "targetPrice": 800,
+    "currency": "JPY",
+    "isSale": true,
+    "notifyEmail": "japanshop.tuyan78@gmail.com",
+    "lastCheckedAt": "2026-09-10T12:00:00.000Z",
+    "active": true
+  },
+  {
+    "id": "rakuten-2",
+    "name": "スピルリナ100% 6000粒 約5ヵ月分 送料無料ホールフード マルチビタミン マルチミネラル アミノ酸　ファスティング ダイエット タンパク質がたっぷり 健康食品 タンパク質の多い食品 フィコシアニン サプリメント スピルリナ普及会",
+    "url": "https://item.rakuten.co.jp/sp100/10000047/",
+    "imageUrl": "https://thumbnail.image.rakuten.co.jp/@0_mall/sp100/cabinet/syohin/3013.jpg?_ex=128x128",
+    "currentPrice": 6264,
+    "initialPrice": 6264,
+    "targetPrice": 5500,
+    "currency": "JPY",
+    "isSale": false,
+    "notifyEmail": "japanshop.tuyan78@gmail.com",
+    "lastCheckedAt": "2026-09-10T15:31:00.031Z",
+    "active": true
+  }
+]

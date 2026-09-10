@@ -69,7 +69,6 @@ async function sync() {
     const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : idx + 1;
     return {
       id: c.id,
-      slug: c.id.toLowerCase(),
       name: c.name,
       description: c.description || '',
       banner_gradient: c.bannerGradient || 'from-indigo-600 to-violet-700',
@@ -161,8 +160,17 @@ async function sync() {
     order_num: o.order,
     banner: o.banner || 'featured',
   }));
+
+  const dbCategoryOrders = categories.map((c, idx) => ({
+    product_id: c.id,
+    order_num: c.order !== undefined ? Number(c.order) : idx + 1,
+    banner: 'category',
+  }));
+
+  const allDbOrders = [...dbOrders, ...dbCategoryOrders];
+
   try {
-    await postBatch('product_orders', dbOrders);
+    await postBatch('product_orders', allDbOrders);
   } catch (err) {
     if (err.message && err.message.includes("banner")) {
       console.warn("⚠️ Cột 'banner' chưa có trong bảng 'product_orders'. Đang đồng bộ danh sách bán chạy...");

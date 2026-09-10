@@ -1,0 +1,38 @@
+name: Rakuten Price Tracker & Alert
+
+on:
+  schedule:
+    # Chạy tự động mỗi 6 tiếng (0:00, 6:00, 12:00, 18:00 UTC)
+    - cron: '0 */6 * * *'
+  workflow_dispatch: # Cho phép admin kích hoạt chạy thủ công bất kỳ lúc nào
+
+jobs:
+  track-prices:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: "npm"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run Rakuten Price Tracker
+        run: node scripts/rakuten-tracker.mjs
+        env:
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RAKUTEN_APPLICATION_ID: ${{ secrets.RAKUTEN_APPLICATION_ID }}
+          RAKUTEN_ACCESS_KEY: ${{ secrets.RAKUTEN_ACCESS_KEY }}
+          NOTIFY_FROM_EMAIL: ${{ secrets.NOTIFY_FROM_EMAIL }}
+
+      - name: Commit and push updated price data
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          git add src/data/rakuten_monitors.json
+          git diff --quiet && git diff --staged --quiet || (git commit -m "chore: auto-update rakuten monitor prices [skip ci]" && git push)

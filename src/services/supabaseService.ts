@@ -54,7 +54,6 @@ export interface DbProductRow {
 
 export interface DbCategoryRow {
   id: string;
-  slug?: string | null;
   name: string;
   description: string | null;
   banner_gradient: string | null;
@@ -143,7 +142,6 @@ export function mapCategoryToDbRow(c: Category): Record<string, unknown> {
   const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : 0;
   return {
     id: c.id,
-    slug: c.id.toLowerCase(),
     name: c.name,
     description: c.description || "",
     banner_gradient: c.bannerGradient || "from-indigo-600 to-violet-700",
@@ -264,20 +262,47 @@ export const supabaseService = {
   // --------------------------------------------------------------------------
   async getCategories(): Promise<Category[]> {
     if (!supabase) return [];
+    let data: DbCategoryRow[] | null = null;
     try {
-      const { data, error } = await supabase.from("categories").select("*").order("order_num", { ascending: true });
-      if (!error && data) {
-        return data.map(mapDbCategoryToCategory).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+      const res = await supabase.from("categories").select("*").order("order_num", { ascending: true });
+      if (!res.error && res.data) {
+        data = res.data as unknown as DbCategoryRow[];
       }
     } catch {
       // ignore
     }
-    const { data, error } = await supabase.from("categories").select("*").order("id", { ascending: true });
-    if (error) {
-      console.error("[supabaseService] getCategories error:", error.message);
-      throw error;
+    if (!data) {
+      const res = await supabase.from("categories").select("*").order("id", { ascending: true });
+      if (res.error) {
+        console.error("[supabaseService] getCategories error:", res.error.message);
+        throw res.error;
+      }
+      data = res.data as unknown as DbCategoryRow[];
     }
-    return (data || []).map(mapDbCategoryToCategory).sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+
+    // Category order lookup from product_orders (banner = 'category')
+    const categoryOrderMap = new Map<string, number>();
+    try {
+      const ordRes = await supabase.from("product_orders").select("product_id, order_num").eq("banner", "category");
+      if (!ordRes.error && ordRes.data) {
+        ordRes.data.forEach((o) => categoryOrderMap.set(String(o.product_id).trim(), Number(o.order_num)));
+      }
+    } catch {
+      // ignore
+    }
+
+    return (data || [])
+      .map((row) => {
+        const cat = mapDbCategoryToCategory(row);
+        if (row.order_num === null || row.order_num === undefined || row.order_num === 0) {
+          const mappedOrder = categoryOrderMap.get(row.id);
+          if (mappedOrder !== undefined) {
+            cat.order = mappedOrder;
+          }
+        }
+        return cat;
+      })
+      .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
   },
 
   async createCategory(category: Category): Promise<Category> {
@@ -285,12 +310,24 @@ export const supabaseService = {
     const row = mapCategoryToDbRow(category);
     try {
       const { data, error } = await supabase.from("categories").insert(row).select().single();
-      if (!error && data) return mapDbCategoryToCategory(data);
+      if (!error && data) {
+        // Also persist order to product_orders
+        await supabase.from("product_orders").upsert(
+          { product_id: category.id, order_num: category.order ?? 999, banner: "category" },
+          { onConflict: "product_id,banner" }
+        );
+        return mapDbCategoryToCategory(data);
+      }
       if (error && error.message && error.message.includes("order_num")) {
         // Fallback without order_num if column not present yet
-        const { order_num, ...rest } = row;
+        const { order_num: _omitted, ...rest } = row;
+        void _omitted;
         const { data: fallbackData, error: fallbackErr } = await supabase.from("categories").insert(rest).select().single();
         if (fallbackErr) throw fallbackErr;
+        await supabase.from("product_orders").upsert(
+          { product_id: category.id, order_num: category.order ?? 999, banner: "category" },
+          { onConflict: "product_id,banner" }
+        );
         return mapDbCategoryToCategory(fallbackData);
       }
       if (error) throw error;
@@ -326,9 +363,40 @@ export const supabaseService = {
     }
   },
 
+  async saveCategoryOrder(orderedCategories: Category[]): Promise<void> {
+    if (!supabase) throw new Error("Supabase is not configured");
+    const updated = orderedCategories.map((c, idx) => ({
+      ...c,
+      order: idx + 1,
+    }));
+
+    // 1. Try updating order_num on categories
+    await Promise.allSettled(
+      updated.map((c) =>
+        supabase!.from("categories").update({ order_num: c.order }).eq("id", c.id)
+      )
+    );
+
+    // 2. Persist in product_orders under banner = 'category'
+    try {
+      await supabase.from("product_orders").delete().eq("banner", "category");
+      await supabase.from("product_orders").insert(
+        updated.map((c) => ({
+          product_id: c.id,
+          order_num: c.order,
+          banner: "category",
+        }))
+      );
+    } catch (err) {
+      console.error("[supabaseService] saveCategoryOrder error:", err);
+      throw err;
+    }
+  },
+
   async deleteCategory(id: string): Promise<void> {
     if (!supabase) throw new Error("Supabase is not configured");
     await supabase.from("category_products").delete().eq("category_id", id);
+    await supabase.from("product_orders").delete().eq("product_id", id).eq("banner", "category");
     const { error } = await supabase.from("categories").delete().eq("id", id);
     if (error) {
       console.error(`[supabaseService] deleteCategory(${id}) error:`, error.message);
@@ -342,7 +410,10 @@ export const supabaseService = {
     const { error } = await supabase.from("categories").upsert(rows, { onConflict: "id" });
     if (error) {
       if (error.message && error.message.includes("order_num")) {
-        const fallbackRows = rows.map(({ order_num, ...rest }) => rest);
+        const fallbackRows = rows.map(({ order_num: _omitted, ...rest }) => {
+          void _omitted;
+          return rest;
+        });
         const { error: retryErr } = await supabase.from("categories").upsert(fallbackRows, { onConflict: "id" });
         if (retryErr) throw retryErr;
         return;
