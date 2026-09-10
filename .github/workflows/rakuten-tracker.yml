@@ -2,8 +2,8 @@ name: Rakuten Price Tracker & Alert
 
 on:
   schedule:
-    # Chạy tự động mỗi 6 tiếng (0:00, 6:00, 12:00, 18:00 UTC)
-    - cron: '0 */6 * * *'
+    # Chạy tự động 1 tuần 1 lần (Lúc 00:00 UTC Thứ Hai hàng tuần = 07:00 sáng VN)
+    - cron: '0 0 * * 1'
   workflow_dispatch: # Cho phép admin kích hoạt chạy thủ công bất kỳ lúc nào
 
 jobs:
