@@ -13,11 +13,12 @@ export default function Footer() {
 
   return (
     <footer className="w-full border-t border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-zinc-950">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
         <div className="grid grid-cols-1 gap-8 md:grid-cols-2 lg:grid-cols-12 items-start">
           {/* Logo & Intro */}
-          <div className="lg:col-span-4">
+          <div className="lg:col-span-3">
             <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight text-zinc-900 dark:text-white mb-4">
+
               <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
                 <Image
                   src={getAssetPath("/logo.jpg")}
