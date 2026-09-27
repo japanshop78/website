@@ -288,8 +288,11 @@ export default function ProductDetailPage({ product, related }: Props) {
               </label>
               <div className="flex items-center gap-0">
                 <button
+                  type="button"
                   onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-                  className="h-10 w-10 flex items-center justify-center rounded-l-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                  disabled={quantity <= 1}
+                  className="h-10 w-10 flex items-center justify-center rounded-l-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed"
+                  aria-label="Giảm số lượng"
                 >
                   <MinusIcon className="h-4 w-4" />
                 </button>
@@ -297,8 +300,10 @@ export default function ProductDetailPage({ product, related }: Props) {
                   {quantity}
                 </span>
                 <button
-                  onClick={() => setQuantity((q) => Math.min(currentProduct.stock, q + 1))}
+                  type="button"
+                  onClick={() => setQuantity((q) => q + 1)}
                   className="h-10 w-10 flex items-center justify-center rounded-r-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                  aria-label="Tăng số lượng"
                 >
                   <PlusIcon className="h-4 w-4" />
                 </button>
@@ -308,13 +313,11 @@ export default function ProductDetailPage({ product, related }: Props) {
             {/* CTA Buttons */}
             <div className="flex flex-col gap-3 sm:flex-row">
               <button
+                type="button"
                 onClick={handleAddToCart}
-                disabled={currentProduct.stock === 0}
-                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-200 cursor-pointer ${
+                className={`flex-1 flex items-center justify-center gap-2 rounded-2xl px-6 py-3.5 text-sm font-semibold transition-all duration-200 cursor-pointer shadow-sm hover:shadow-md ${
                   added
                     ? "bg-green-600 text-white"
-                    : currentProduct.stock === 0
-                    ? "bg-zinc-200 dark:bg-zinc-800 text-zinc-400 cursor-not-allowed"
                     : "bg-indigo-600 text-white hover:bg-indigo-500 active:scale-95"
                 }`}
               >
@@ -331,9 +334,9 @@ export default function ProductDetailPage({ product, related }: Props) {
                 )}
               </button>
               <button
+                type="button"
                 onClick={handleBuyNow}
-                disabled={currentProduct.stock === 0}
-                className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-6 py-3.5 text-sm font-semibold text-zinc-900 dark:text-white hover:border-indigo-500 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400 transition-all duration-200 cursor-pointer active:scale-95 disabled:opacity-50 disabled:cursor-not-allowed"
+                className="flex-1 flex items-center justify-center gap-2 rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 px-6 py-3.5 text-sm font-semibold text-zinc-900 dark:text-white hover:border-indigo-500 hover:text-indigo-600 dark:hover:border-indigo-500 dark:hover:text-indigo-400 transition-all duration-200 active:scale-95 cursor-pointer shadow-xs"
               >
                 <BoltIcon className="h-5 w-5" />
                 Mua ngay

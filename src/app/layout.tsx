@@ -3,6 +3,7 @@ import { Plus_Jakarta_Sans } from "next/font/google";
 import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
+import CartDrawer from "@/components/CartDrawer";
 import MessengerFloatingButton from "@/components/MessengerFloatingButton";
 import TrackingScripts from "@/components/TrackingScripts";
 import { ThemeProvider } from "@/context/ThemeContext";
@@ -39,6 +40,7 @@ export default function RootLayout({
           <ProductDataProvider>
             <CartProvider>
               <Header />
+              <CartDrawer />
               <main className="flex-1 flex flex-col">{children}</main>
               <Footer />
               <MessengerFloatingButton />

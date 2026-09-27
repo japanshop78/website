@@ -14,7 +14,11 @@ interface CartContextType {
   items: CartItem[];
   totalItems: number;
   totalPrice: number;
-  addToCart: (product: Product, quantity?: number) => void;
+  isCartDrawerOpen: boolean;
+  openCartDrawer: () => void;
+  closeCartDrawer: () => void;
+  toggleCartDrawer: () => void;
+  addToCart: (product: Product, quantity?: number, openDrawer?: boolean) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   removeFromCart: (productId: string) => void;
   clearCart: () => void;
@@ -25,6 +29,11 @@ const CartContext = createContext<CartContextType | undefined>(undefined);
 export function CartProvider({ children }: { children: React.ReactNode }) {
   const [items, setItems] = useState<CartItem[]>([]);
   const [isLoaded, setIsLoaded] = useState(false);
+  const [isCartDrawerOpen, setIsCartDrawerOpen] = useState(false);
+
+  const openCartDrawer = () => setIsCartDrawerOpen(true);
+  const closeCartDrawer = () => setIsCartDrawerOpen(false);
+  const toggleCartDrawer = () => setIsCartDrawerOpen((prev) => !prev);
 
   // Load cart from localStorage
   useEffect(() => {
@@ -50,7 +59,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     }
   };
 
-  const addToCart = (product: Product, quantity = 1) => {
+  const addToCart = (product: Product, quantity = 1, openDrawer = false) => {
     const existingIndex = items.findIndex((i) => i.product.id === product.id);
 
     if (existingIndex > -1) {
@@ -62,6 +71,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       persistCart(next);
     } else {
       persistCart([...items, { product, quantity }]);
+    }
+    
+    if (openDrawer) {
+      setIsCartDrawerOpen(true);
     }
   };
 
@@ -98,6 +111,10 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
         items,
         totalItems,
         totalPrice,
+        isCartDrawerOpen,
+        openCartDrawer,
+        closeCartDrawer,
+        toggleCartDrawer,
         addToCart,
         updateQuantity,
         removeFromCart,

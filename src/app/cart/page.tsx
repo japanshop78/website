@@ -355,7 +355,8 @@ export default function CartPage() {
                 })}
               </div>
 
-              {/* Free ship notification banner */}
+              {/* Free ship notification banner (Tạm thời ẩn theo yêu cầu) */}
+              {/*
               <div className="rounded-2xl border border-indigo-100 dark:border-indigo-900/60 bg-indigo-50/50 dark:bg-indigo-950/30 p-4 flex items-center gap-3">
                 <span className="text-2xl">🚚</span>
                 <div className="text-xs">
@@ -374,6 +375,7 @@ export default function CartPage() {
                   )}
                 </div>
               </div>
+              */}
 
               <div className="flex items-center justify-between pt-2">
                 <Link

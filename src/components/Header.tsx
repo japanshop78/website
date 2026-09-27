@@ -13,6 +13,7 @@ import CartIcon from "./icons/CartIcon";
 import MenuIcon from "./icons/MenuIcon";
 import CloseIcon from "./icons/CloseIcon";
 import SettingsIcon from "./icons/SettingsIcon";
+import LiveSearchDropdown from "./LiveSearchDropdown";
 import { getAssetPath } from "@/utils/assetPath";
 
 const emptySubscribe = () => () => {};
@@ -27,18 +28,11 @@ function useIsMounted() {
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [isSearchOpen, setIsSearchOpen] = useState(false);
-  const [searchQuery, setSearchQuery] = useState("");
+  const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
   const { categories } = useProductData();
-  const { totalItems } = useCart();
+  const { totalItems, openCartDrawer } = useCart();
   const mounted = useIsMounted();
-
-  const handleSearch = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      alert(`Đang tìm kiếm: ${searchQuery}`);
-    }
-  };
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -86,9 +80,10 @@ export default function Header() {
             <SearchIcon className="h-6 w-6" />
           </button>
 
-          {/* Cart Icon Link */}
-          <Link
-            href="/cart"
+          {/* Cart Icon Button */}
+          <button
+            type="button"
+            onClick={openCartDrawer}
             className="relative p-2 text-zinc-700 hover:text-indigo-600 dark:text-zinc-300 dark:hover:text-indigo-400 cursor-pointer transition-colors"
             title="Giỏ hàng"
             aria-label="Xem giỏ hàng"
@@ -99,7 +94,7 @@ export default function Header() {
                 {totalItems > 99 ? "99+" : totalItems}
               </span>
             )}
-          </Link>
+          </button>
 
           {/* Theme Toggle Button */}
           {mounted ? (
@@ -142,52 +137,32 @@ export default function Header() {
         </div>
       </div>
 
-      {/* Expandable Search Bar */}
-      {isSearchOpen && (
-        <div className="border-t border-zinc-200 bg-white/95 backdrop-blur-md px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/95 shadow-md animate-in fade-in duration-200">
-          <div className="mx-auto max-w-2xl">
-            <form onSubmit={handleSearch} className="relative flex items-center">
-              <input
-                type="text"
-                autoFocus
-                placeholder="Tìm kiếm sản phẩm..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-4 pr-20 text-base outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
-              />
-              <div className="absolute right-2 flex items-center gap-1">
-                <button
-                  type="submit"
-                  className="p-1.5 text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 cursor-pointer"
-                  aria-label="Tìm kiếm"
-                >
-                  <SearchIcon className="h-4 w-4" />
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setIsSearchOpen(false)}
-                  className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
-                  aria-label="Đóng tìm kiếm"
-                >
-                  <CloseIcon className="h-4 w-4" />
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      {/* Live Search Dropdown */}
+      <LiveSearchDropdown
+        isOpen={isSearchOpen}
+        onClose={() => setIsSearchOpen(false)}
+      />
 
       {/* Mobile Menu */}
       {isMenuOpen && (
         <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 lg:hidden shadow-xl animate-in slide-in-from-top-2 duration-200">
           <div className="mx-auto max-w-7xl px-4 py-4 space-y-4">
             {/* Mobile Search */}
-            <form onSubmit={handleSearch} className="relative flex items-center">
+            <form
+              onSubmit={(e) => {
+                e.preventDefault();
+                if (mobileSearchQuery.trim()) {
+                  setIsMenuOpen(false);
+                  window.location.href = `/search?q=${encodeURIComponent(mobileSearchQuery.trim())}`;
+                }
+              }}
+              className="relative flex items-center"
+            >
               <input
                 type="text"
                 placeholder="Tìm kiếm sản phẩm nội địa Nhật..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={mobileSearchQuery}
+                onChange={(e) => setMobileSearchQuery(e.target.value)}
                 className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-4 pr-10 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-900 focus:border-indigo-500"
               />
               <button type="submit" className="absolute right-3 text-zinc-400">

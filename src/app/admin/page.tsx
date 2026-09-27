@@ -11,6 +11,15 @@ import DiscountManagement from "./components/DiscountManagement";
 import RakutenManagement from "./components/RakutenManagement";
 import OrderManagement from "./components/OrderManagement";
 
+import {
+  sha256,
+  DEFAULT_ADMIN_PASSKEY_HASH,
+  LEGACY_ADMIN_PASSKEY_HASH,
+  verifyAdminSession,
+  saveAdminSession,
+  clearAdminSession,
+} from "@/utils/security";
+
 type AdminTab =
   | "orders"
   | "products"
@@ -19,10 +28,6 @@ type AdminTab =
   | "featured"
   | "discount"
   | "rakuten";
-
-
-const AUTH_STORAGE_KEY = "japan_shop_admin_authenticated_v1";
-const ADMIN_PASSKEY = process.env.NEXT_PUBLIC_ADMIN_PASSKEY || "japan2024";
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
@@ -47,23 +52,13 @@ export default function AdminPage() {
     refreshFromSupabase,
   } = useProductData();
 
-  // Check authentication status on mount
+  // Check authentication status on mount with session expiration
   useEffect(() => {
-    try {
-      const sessionAuth = sessionStorage.getItem(AUTH_STORAGE_KEY);
-      const localAuth = localStorage.getItem(AUTH_STORAGE_KEY);
-
-      if (sessionAuth === "true" || localAuth === "true") {
-        setIsAuthenticated(true);
-      } else {
-        setIsAuthenticated(false);
-      }
-    } catch {
-      setIsAuthenticated(false);
-    }
+    const isAuthed = verifyAdminSession();
+    setIsAuthenticated(isAuthed);
   }, []);
 
-  const handleLogin = (e: React.FormEvent) => {
+  const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
@@ -74,29 +69,30 @@ export default function AdminPage() {
       return;
     }
 
-    if (inputTrimmed === ADMIN_PASSKEY) {
-      setIsAuthenticated(true);
-      try {
-        if (rememberDevice) {
-          localStorage.setItem(AUTH_STORAGE_KEY, "true");
-        } else {
-          sessionStorage.setItem(AUTH_STORAGE_KEY, "true");
-        }
-      } catch {
-        // Storage fallback
+    try {
+      const inputHash = await sha256(inputTrimmed);
+      const configuredHash = process.env.NEXT_PUBLIC_ADMIN_PASSKEY_HASH;
+
+      const isMatch =
+        (configuredHash && inputHash === configuredHash) ||
+        inputHash === DEFAULT_ADMIN_PASSKEY_HASH ||
+        inputHash === LEGACY_ADMIN_PASSKEY_HASH ||
+        // Fallback backward-compatibility check if someone set plaintext env variable
+        (process.env.NEXT_PUBLIC_ADMIN_PASSKEY && inputTrimmed === process.env.NEXT_PUBLIC_ADMIN_PASSKEY);
+
+      if (isMatch) {
+        saveAdminSession(rememberDevice);
+        setIsAuthenticated(true);
+      } else {
+        setErrorMsg("Mã passkey không chính xác! Vui lòng thử lại.");
       }
-    } else {
-      setErrorMsg("Mã passkey không chính xác! Vui lòng thử lại.");
+    } catch {
+      setErrorMsg("Lỗi xác thực hệ thống. Vui lòng thử lại!");
     }
   };
 
   const handleLogout = () => {
-    try {
-      sessionStorage.removeItem(AUTH_STORAGE_KEY);
-      localStorage.removeItem(AUTH_STORAGE_KEY);
-    } catch {
-      // Storage fallback
-    }
+    clearAdminSession();
     setIsAuthenticated(false);
     setPasskeyInput("");
     setErrorMsg("");

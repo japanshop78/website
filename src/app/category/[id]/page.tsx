@@ -29,13 +29,38 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 
   if (!category) {
     return {
-      title: "Danh mục - Japan Shop",
+      title: "Danh mục không tìm thấy - Japan Shop",
+      description: "Danh mục sản phẩm không tồn tại tại Japan Shop.",
     };
   }
 
+  const description = category.description || `Khám phá các sản phẩm ${category.name} chính hãng nội địa Nhật Bản chất lượng cao tại Japan Shop.`;
+
   return {
     title: `${category.name} - Japan Shop`,
-    description: category.description,
+    description,
+    openGraph: {
+      title: `${category.name} - Japan Shop`,
+      description,
+      url: `https://japanshop.vn/category/${category.id}`,
+      siteName: "Japan Shop",
+      locale: "vi_VN",
+      type: "website",
+      images: [
+        {
+          url: "https://japanshop.vn/logo.jpg",
+          width: 600,
+          height: 600,
+          alt: category.name,
+        },
+      ],
+    },
+    twitter: {
+      card: "summary_large_image",
+      title: `${category.name} - Japan Shop`,
+      description,
+      images: ["https://japanshop.vn/logo.jpg"],
+    },
   };
 }
 
