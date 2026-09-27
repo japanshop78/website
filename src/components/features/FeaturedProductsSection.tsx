@@ -7,7 +7,9 @@ import { Product } from "@/data/products";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
+import { analytics } from "@/utils/analytics";
 import { StarIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
+
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -97,9 +99,15 @@ export default function FeaturedProductsSection() {
 
   const handleAdd = (product: Product) => {
     addToCart(product, 1);
+    analytics.trackAddToCart({
+      id: product.id,
+      name: product.name,
+      price: product.price,
+    }, 1);
     setAddedId(product.id);
     setTimeout(() => setAddedId(null), 1500);
   };
+
 
   if (featuredProducts.length === 0) {
     return null;

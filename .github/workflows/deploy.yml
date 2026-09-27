@@ -44,6 +44,10 @@ jobs:
           NEXT_PUBLIC_ADMIN_PASSKEY: ${{ secrets.ADMIN_PASSKEY }}
           NEXT_PUBLIC_SUPABASE_URL: ${{ secrets.NEXT_PUBLIC_SUPABASE_URL }}
           NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: ${{ secrets.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY }}
+          NEXT_PUBLIC_META_PIXEL_ID: ${{ secrets.NEXT_PUBLIC_META_PIXEL_ID }}
+          NEXT_PUBLIC_GA_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_GA_MEASUREMENT_ID }}
+          NEXT_PUBLIC_ZALO_WEBHOOK_URL: ${{ secrets.NEXT_PUBLIC_ZALO_WEBHOOK_URL }}
+
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3

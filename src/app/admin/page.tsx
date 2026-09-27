@@ -9,14 +9,17 @@ import ProductManagement from "./components/ProductManagement";
 import FeaturedManagement from "./components/FeaturedManagement";
 import DiscountManagement from "./components/DiscountManagement";
 import RakutenManagement from "./components/RakutenManagement";
+import OrderManagement from "./components/OrderManagement";
 
 type AdminTab =
+  | "orders"
+  | "products"
   | "categories"
   | "category_products"
-  | "products"
   | "featured"
   | "discount"
   | "rakuten";
+
 
 const AUTH_STORAGE_KEY = "japan_shop_admin_authenticated_v1";
 const ADMIN_PASSKEY = process.env.NEXT_PUBLIC_ADMIN_PASSKEY || "japan2024";
@@ -222,6 +225,14 @@ export default function AdminPage() {
 
   const navItems = [
     {
+      id: "orders" as AdminTab,
+      label: "Quản lý Đơn hàng",
+      icon: "🛍️",
+      count: "Realtime",
+      color: "emerald",
+      desc: "Xem đơn, gọi khách, chat Zalo",
+    },
+    {
       id: "products" as AdminTab,
       label: "Quản lý Sản phẩm",
       icon: "📦",
@@ -229,6 +240,7 @@ export default function AdminPage() {
       color: "indigo",
       desc: "Thêm, sửa, giá bán, tồn kho",
     },
+
     {
       id: "categories" as AdminTab,
       label: "Quản lý Danh mục",
@@ -509,12 +521,14 @@ export default function AdminPage() {
           {/* Right Main Content Area */}
           <main className="min-w-0">
             <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-6 lg:p-7 shadow-sm">
+              {activeTab === "orders" && <OrderManagement />}
               {activeTab === "products" && <ProductManagement />}
               {activeTab === "categories" && <CategoryManagement />}
               {activeTab === "category_products" && <CategoryProductManagement />}
               {activeTab === "featured" && <FeaturedManagement />}
               {activeTab === "discount" && <DiscountManagement />}
               {activeTab === "rakuten" && <RakutenManagement />}
+
             </div>
           </main>
         </div>
