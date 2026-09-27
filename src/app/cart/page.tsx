@@ -5,7 +5,10 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
+import { orderService } from "@/services/orderService";
+import { analytics } from "@/utils/analytics";
 import Breadcrumb from "@/components/Breadcrumb";
+
 import {
   TrashIcon,
   PlusIcon,
@@ -35,6 +38,7 @@ export default function CartPage() {
   const [address, setAddress] = useState("");
   const [note, setNote] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<"cod" | "banking">("cod");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Order success state
   const [orderSuccessData, setOrderSuccessData] = useState<{
@@ -45,36 +49,104 @@ export default function CartPage() {
     total: number;
     paymentMethod: string;
     itemCount: number;
+    zaloMessage?: string;
   } | null>(null);
 
   // Shipping cost rule: Free ship for orders >= 500.000đ, otherwise 25.000đ
   const shippingFee = totalPrice >= 500000 || totalPrice === 0 ? 0 : 25000;
   const finalTotal = totalPrice + shippingFee;
 
-  const handleCheckoutSubmit = (e: React.FormEvent) => {
+  const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!customerName.trim() || !phone.trim() || !address.trim()) {
       alert("Vui lòng điền đầy đủ Họ tên, Số điện thoại và Địa chỉ giao hàng!");
       return;
     }
 
-    const orderId = `JP-${Date.now().toString().slice(-6)}`;
-    const successPayload = {
-      orderId,
-      name: customerName.trim(),
-      phone: phone.trim(),
-      address: address.trim(),
-      total: finalTotal,
-      paymentMethod:
-        paymentMethod === "cod"
-          ? "Thanh toán khi nhận hàng (COD)"
-          : "Chuyển khoản ngân hàng",
-      itemCount: totalItems,
-    };
+    if (items.length === 0) {
+      alert("Giỏ hàng của bạn đang trống!");
+      return;
+    }
 
-    setOrderSuccessData(successPayload);
-    clearCart();
+    setIsSubmitting(true);
+    const orderId = `JP-${Date.now().toString().slice(-6)}`;
+    const orderItems = items.map((it) => ({
+      productId: it.product.id,
+      name: it.product.name,
+      price: it.product.price,
+      quantity: it.quantity,
+      image: it.product.images?.[0] || "",
+    }));
+
+    try {
+      const res = await orderService.createOrder({
+        id: orderId,
+        customerName: customerName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        note: note.trim(),
+        paymentMethod,
+        subtotal: totalPrice,
+        shippingFee,
+        totalPrice: finalTotal,
+        items: orderItems,
+      });
+
+      if (!res.success) {
+        alert("Có lỗi khi tạo đơn hàng: " + (res.error || "Vui lòng thử lại sau"));
+        setIsSubmitting(false);
+        return;
+      }
+
+      // Kích hoạt sự kiện Purchase cho Meta Pixel & GA4
+      analytics.trackPurchase({
+        orderId,
+        total: finalTotal,
+        items: items.map((it) => ({
+          id: it.product.id,
+          name: it.product.name,
+          price: it.product.price,
+          quantity: it.quantity,
+        })),
+      });
+
+      const successPayload = {
+        orderId,
+        name: customerName.trim(),
+        phone: phone.trim(),
+        address: address.trim(),
+        total: finalTotal,
+        paymentMethod:
+          paymentMethod === "cod"
+            ? "Thanh toán khi nhận hàng (COD)"
+            : "Chuyển khoản ngân hàng",
+        itemCount: totalItems,
+        zaloMessage: orderService.formatZaloOrderMessage({
+          id: orderId,
+          customerName: customerName.trim(),
+          phone: phone.trim(),
+          address: address.trim(),
+          note: note.trim(),
+          paymentMethod,
+          subtotal: totalPrice,
+          shippingFee,
+          totalPrice: finalTotal,
+          items: orderItems,
+          status: "pending",
+          createdAt: new Date().toISOString(),
+        }),
+      };
+
+      setOrderSuccessData(successPayload);
+      clearCart();
+    } catch (err) {
+      console.error("Lỗi gửi đơn:", err);
+      alert("Đã xảy ra lỗi kết nối, vui lòng thử lại!");
+    } finally {
+      setIsSubmitting(false);
+    }
   };
+
 
   const handleSendViaMessenger = () => {
     if (items.length === 0) return;
@@ -109,8 +181,9 @@ export default function CartPage() {
 
   return (
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 py-6 sm:py-10">
-      <div className="w-full px-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl w-full px-4 sm:px-6 lg:px-8">
         {/* Breadcrumb */}
+
         <div className="mb-6">
           <Breadcrumb
             items={[
@@ -451,9 +524,17 @@ export default function CartPage() {
                   {/* Primary Checkout Button */}
                   <button
                     type="submit"
-                    className="w-full rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 active:scale-98 transition-all cursor-pointer mt-3"
+                    disabled={isSubmitting}
+                    className="w-full rounded-2xl bg-indigo-600 py-3.5 text-sm font-bold text-white shadow-md hover:bg-indigo-500 active:scale-98 transition-all cursor-pointer mt-3 disabled:opacity-60 disabled:cursor-not-allowed flex items-center justify-center gap-2"
                   >
-                    🛍️ Đặt Hàng Ngay ({formatPrice(finalTotal)})
+                    {isSubmitting ? (
+                      <>
+                        <span className="h-4 w-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Đang xử lý đơn hàng...</span>
+                      </>
+                    ) : (
+                      <span>🛍️ Đặt Hàng Ngay ({formatPrice(finalTotal)})</span>
+                    )}
                   </button>
                 </form>
 
@@ -517,8 +598,8 @@ export default function CartPage() {
 
               <p className="text-xs sm:text-sm text-zinc-500 dark:text-zinc-400 leading-relaxed">
                 Cảm ơn bạn <strong>{orderSuccessData.name}</strong> đã đặt mua tại Japan Shop.
-                Chúng tôi sẽ liên hệ với bạn qua số điện thoại{" "}
-                <strong>{orderSuccessData.phone}</strong> để xác nhận và giao hàng sớm nhất!
+                Đơn hàng đã được lưu vào hệ thống, chúng tôi sẽ liên hệ qua số{" "}
+                <strong>{orderSuccessData.phone}</strong> để xác nhận và gửi hàng sớm nhất!
               </p>
 
               <div className="rounded-2xl bg-zinc-50 dark:bg-zinc-800/60 p-4 text-left text-xs space-y-2 border border-zinc-200 dark:border-zinc-700">
@@ -550,11 +631,23 @@ export default function CartPage() {
                 </div>
               </div>
 
+              {/* Zalo quick message action */}
+              <div className="pt-1">
+                <a
+                  href={`https://zalo.me/0902493895`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full inline-flex items-center justify-center gap-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 px-4 text-xs shadow-md transition-all cursor-pointer"
+                >
+                  <span>💬 Nhắn tin Zalo với Shop (0902 493 895) để được xác nhận ngay</span>
+                </a>
+              </div>
+
               <div className="pt-2 flex flex-col sm:flex-row gap-3">
                 <button
                   type="button"
                   onClick={() => setOrderSuccessData(null)}
-                  className="flex-1 rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-500 cursor-pointer"
+                  className="flex-1 rounded-xl bg-zinc-900 dark:bg-white text-white dark:text-zinc-900 py-3 text-sm font-bold shadow-md hover:bg-zinc-800 cursor-pointer"
                 >
                   Tiếp tục mua sắm
                 </button>
@@ -568,6 +661,7 @@ export default function CartPage() {
             </div>
           </div>
         )}
+
       </div>
     </div>
   );

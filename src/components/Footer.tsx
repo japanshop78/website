@@ -34,7 +34,7 @@ export default function Footer() {
           </div>
 
           {/* Categories Quick Links */}
-          <div className="lg:col-span-3">
+          <div className="lg:col-span-2">
             <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
               Danh mục
             </h3>
@@ -43,7 +43,7 @@ export default function Footer() {
                 <li key={item.id}>
                   <Link
                     href={`/category/${item.id}`}
-                    className="text-base text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition-colors"
+                    className="text-sm text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition-colors"
                   >
                     {item.name}
                   </Link>
@@ -52,8 +52,42 @@ export default function Footer() {
             </ul>
           </div>
 
+          {/* Policy Links for Ads Approval */}
+          <div className="lg:col-span-3">
+            <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
+              Chính sách & Hỗ trợ
+            </h3>
+            <ul className="space-y-2.5 text-sm text-zinc-500 dark:text-zinc-400">
+              <li>
+                <Link
+                  href="/chinh-sach-doi-tra"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
+                >
+                  ✓ Đổi trả & Hoàn tiền 200%
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/chinh-sach-van-chuyen"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
+                >
+                  🚚 Vận chuyển & Đồng kiểm
+                </Link>
+              </li>
+              <li>
+                <Link
+                  href="/chinh-sach-bao-mat"
+                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
+                >
+                  🔒 Bảo mật thông tin
+                </Link>
+              </li>
+            </ul>
+          </div>
+
           {/* Featured Contact Box (Gợi ý 1 + Gợi ý 4) */}
-          <div className="md:col-span-2 lg:col-span-5">
+          <div className="md:col-span-2 lg:col-span-4">
+
             <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
               <div className="flex items-center justify-between gap-3 mb-5 border-b border-zinc-100 dark:border-zinc-800/80 pb-3.5">
                 <h3 className="text-base font-bold text-zinc-900 dark:text-white uppercase tracking-wider">

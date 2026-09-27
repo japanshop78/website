@@ -1,10 +1,13 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import type { Product } from "@/data/products";
+import { analytics } from "@/utils/analytics";
+
+
 import CartIcon from "@/components/icons/CartIcon";
 import StarIcon from "@/components/icons/StarIcon";
 import MinusIcon from "@/components/icons/MinusIcon";
@@ -52,6 +55,17 @@ export default function ProductDetailPage({ product, related }: Props) {
   const [added, setAdded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  // Kích hoạt sự kiện ViewContent cho Meta Pixel & GA4 khi xem sản phẩm
+  useEffect(() => {
+    if (currentProduct?.id) {
+      analytics.trackViewItem({
+        id: currentProduct.id,
+        name: currentProduct.name,
+        price: currentProduct.price,
+      });
+    }
+  }, [currentProduct?.id, currentProduct?.name, currentProduct?.price]);
+
   const imageList =
     currentProduct.images && currentProduct.images.length > 0
       ? currentProduct.images
@@ -60,14 +74,25 @@ export default function ProductDetailPage({ product, related }: Props) {
 
   const handleAddToCart = () => {
     addToCart(currentProduct, quantity);
+    analytics.trackAddToCart({
+      id: currentProduct.id,
+      name: currentProduct.name,
+      price: currentProduct.price,
+    }, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
   };
 
   const handleBuyNow = () => {
     addToCart(currentProduct, quantity);
+    analytics.trackAddToCart({
+      id: currentProduct.id,
+      name: currentProduct.name,
+      price: currentProduct.price,
+    }, quantity);
     router.push("/cart");
   };
+
 
   const discount =
     currentProduct.oldPrice && currentProduct.oldPrice > currentProduct.price
@@ -83,7 +108,7 @@ export default function ProductDetailPage({ product, related }: Props) {
   return (
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950">
       {/* Breadcrumb */}
-      <div className="w-full px-4 py-4 sm:px-6 lg:px-8">
+      <div className="mx-auto max-w-7xl w-full px-4 py-4 sm:px-6 lg:px-8">
         <Breadcrumb
           items={[
             { label: "Trang chủ", href: "/" },
@@ -94,11 +119,11 @@ export default function ProductDetailPage({ product, related }: Props) {
       </div>
 
       {/* Main Content */}
-      <div className="w-full px-4 pb-16 sm:px-6 lg:px-8">
-        <div className="grid grid-cols-1 gap-12 lg:grid-cols-2">
+      <div className="mx-auto max-w-7xl w-full px-4 pb-16 sm:px-6 lg:px-8">
+        <div className="grid grid-cols-1 gap-8 lg:gap-12 lg:grid-cols-12 items-start">
           {/* Product Image & Gallery Slider */}
-          <div className="flex flex-col gap-4">
-            <div className="relative w-full aspect-square rounded-3xl bg-white dark:bg-zinc-900 overflow-hidden shadow-xl border border-zinc-200/60 dark:border-zinc-800 p-4 sm:p-6 flex items-center justify-center group">
+          <div className="lg:col-span-5 flex flex-col gap-4 lg:sticky lg:top-24">
+            <div className="relative w-full aspect-square max-h-[460px] sm:max-h-[500px] rounded-3xl bg-white dark:bg-zinc-900 overflow-hidden shadow-lg border border-zinc-200/80 dark:border-zinc-800 p-4 sm:p-6 flex items-center justify-center group">
               {activeImage ? (
                 <Image
                   key={activeImage}
@@ -106,10 +131,11 @@ export default function ProductDetailPage({ product, related }: Props) {
                   alt={currentProduct.name}
                   fill
                   priority
-                  className="object-contain p-2 sm:p-4 transition-transform duration-300 group-hover:scale-105"
-                  sizes="(max-width: 1024px) 100vw, 50vw"
+                  className="object-contain p-2 sm:p-4 transition-transform duration-300 group-hover:scale-105 select-none"
+                  sizes="(max-width: 1024px) 100vw, 42vw"
                 />
               ) : (
+
                 <div className="absolute inset-0 flex items-center justify-center">
                   <span className="text-white font-bold text-2xl tracking-wide bg-black/20 backdrop-blur-md px-8 py-4 rounded-2xl">
                     {categoryName}
@@ -199,8 +225,9 @@ export default function ProductDetailPage({ product, related }: Props) {
           </div>
 
           {/* Product Info */}
-          <div className="flex flex-col gap-6">
+          <div className="lg:col-span-7 flex flex-col gap-6">
             {/* Category & Name */}
+
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                 {categoryName}

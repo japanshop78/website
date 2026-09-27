@@ -4,6 +4,7 @@ import "./globals.css";
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import MessengerFloatingButton from "@/components/MessengerFloatingButton";
+import TrackingScripts from "@/components/TrackingScripts";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProductDataProvider } from "@/context/ProductDataContext";
 import { CartProvider } from "@/context/CartContext";
@@ -16,8 +17,8 @@ const plusJakartaSans = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "Japan Shop",
-  description: "",
+  title: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
+  description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
   referrer: "no-referrer",
 };
 
@@ -33,6 +34,7 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50 font-sans">
+        <TrackingScripts />
         <ThemeProvider>
           <ProductDataProvider>
             <CartProvider>
@@ -47,5 +49,6 @@ export default function RootLayout({
     </html>
   );
 }
+
 
 
