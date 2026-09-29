@@ -329,12 +329,13 @@ export default function OrderManagement() {
                       </div>
                     )}
 
-                    <div>
+                    {/* Tạm thời ẩn hình thức thanh toán */}
+                    {/* <div>
                       <span className="text-zinc-400 block text-[10px] uppercase font-bold">Hình thức</span>
                       <span className="font-semibold text-zinc-700 dark:text-zinc-300">
                         {order.paymentMethod === "cod" ? "💵 Thanh toán COD" : "🏦 Chuyển khoản ngân hàng"}
                       </span>
-                    </div>
+                    </div> */}
                   </div>
 
                   {/* Right: Items list (7 cols) */}
