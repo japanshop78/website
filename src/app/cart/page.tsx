@@ -491,8 +491,8 @@ export default function CartPage() {
                     />
                   </div>
 
-                  {/* Payment Method */}
-                  <div>
+                  {/* Payment Method - Tạm thời ẩn */}
+                  {/* <div>
                     <label className="block text-[11px] font-bold uppercase text-zinc-600 dark:text-zinc-400 mb-1.5">
                       Hình thức thanh toán
                     </label>
@@ -521,7 +521,7 @@ export default function CartPage() {
                         <span className="block">🏦 Chuyển khoản ngân hàng</span>
                       </button>
                     </div>
-                  </div>
+                  </div> */}
 
                   {/* Primary Checkout Button */}
                   <button
@@ -617,12 +617,13 @@ export default function CartPage() {
                     {orderSuccessData.address}
                   </span>
                 </div>
-                <div className="flex justify-between">
+                {/* Tạm thời ẩn hình thức thanh toán */}
+                {/* <div className="flex justify-between">
                   <span className="text-zinc-500">Hình thức:</span>
                   <span className="font-semibold text-zinc-800 dark:text-zinc-200">
                     {orderSuccessData.paymentMethod}
                   </span>
-                </div>
+                </div> */}
                 <div className="flex justify-between border-t border-zinc-200 dark:border-zinc-700 pt-2 text-sm">
                   <span className="font-bold text-zinc-900 dark:text-white">
                     Tổng thanh toán:
