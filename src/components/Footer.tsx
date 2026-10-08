@@ -5,12 +5,9 @@ import Image from "next/image";
 import LocationIcon from "./icons/LocationIcon";
 import PhoneIcon from "./icons/PhoneIcon";
 import MailIcon from "./icons/MailIcon";
-import { useProductData } from "@/context/ProductDataContext";
 import { getAssetPath } from "@/utils/assetPath";
 
 export default function Footer() {
-  const { categories } = useProductData();
-
   return (
     <footer className="w-full border-t border-zinc-200 bg-zinc-50 py-12 dark:border-zinc-800 dark:bg-zinc-950">
       <div className="mx-auto max-w-7xl px-4 sm:px-6 lg:px-8">
@@ -30,64 +27,45 @@ export default function Footer() {
               <span>Japan Shop</span>
             </Link>
             <p className="max-w-sm text-base text-zinc-500 dark:text-zinc-400 leading-relaxed">
-              Cam kết 100% sản phẩm chính hãng nội địa Nhật. Trải nghiệm mua sắm uy tín và dịch vụ chăm sóc khách hàng tận tâm nhất.
+              Cam kết 100% sản phẩm chính hãng nội địa Nhật.
             </p>
           </div>
 
-          {/* Categories Quick Links */}
-          <div className="lg:col-span-2">
-            <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
-              Danh mục
-            </h3>
-            <ul className="space-y-2.5">
-              {categories.map((item) => (
-                <li key={item.id}>
-                  <Link
-                    href={`/category/${item.id}`}
-                    className="text-sm text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 transition-colors"
-                  >
-                    {item.name}
-                  </Link>
-                </li>
-              ))}
-            </ul>
-          </div>
-
-          {/* Policy Links for Ads Approval */}
-          <div className="lg:col-span-3">
+          {/* Policy & Support Info */}
+          <div className="lg:col-span-4">
             <h3 className="text-base font-semibold text-zinc-900 dark:text-white uppercase tracking-wider mb-4">
               Chính sách & Hỗ trợ
             </h3>
-            <ul className="space-y-2.5 text-sm text-zinc-500 dark:text-zinc-400">
-              <li>
-                <Link
-                  href="/chinh-sach-doi-tra"
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
-                >
-                  ✓ Đổi trả & Hoàn tiền 200%
-                </Link>
+            <ul className="space-y-3 text-sm text-zinc-600 dark:text-zinc-400">
+              <li className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
+                <span>
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Thời gian đặt hàng:</strong> 15 - 20 ngày (cho hàng không có sẵn)
+                </span>
               </li>
-              <li>
-                <Link
-                  href="/chinh-sach-van-chuyen"
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
-                >
-                  🚚 Vận chuyển & Đồng kiểm
-                </Link>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0" />
+                <span>
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Đơn trên 1.000.000đ:</strong> Miễn phí vận chuyển (Freeship)
+                </span>
               </li>
-              <li>
-                <Link
-                  href="/chinh-sach-bao-mat"
-                  className="hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors block"
-                >
-                  🔒 Bảo mật thông tin
-                </Link>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
+                <span>
+                  Nhận order tất cả sản phẩm nội địa Nhật: đồ điện tử, thời trang, thực phẩm, mỹ phẩm...
+                </span>
+              </li>
+              <li className="flex items-start gap-2.5">
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
+                <span>
+                  Hỗ trợ tư vấn các sản phẩm đang bán chạy tại thị trường nội địa Nhật
+                </span>
               </li>
             </ul>
           </div>
 
           {/* Featured Contact Box (Gợi ý 1 + Gợi ý 4) */}
-          <div className="md:col-span-2 lg:col-span-4">
+          <div className="md:col-span-2 lg:col-span-5">
 
             <div className="rounded-3xl bg-white dark:bg-zinc-900 border border-zinc-200/80 dark:border-zinc-800 p-5 sm:p-6 shadow-sm hover:shadow-md transition-all">
               <div className="flex items-center justify-between gap-3 mb-5 border-b border-zinc-100 dark:border-zinc-800/80 pb-3.5">
