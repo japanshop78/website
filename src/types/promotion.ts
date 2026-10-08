@@ -11,6 +11,18 @@ export interface PromotionCampaign {
   updatedAt?: string;
 }
 
+export const DEFAULT_PROMOTION: PromotionCampaign = {
+  id: "active_campaign",
+  name: "Ưu đãi hot 10/10",
+  isActive: true,
+  discountPercent: 10,
+  isFreeship: true,
+  startDate: "2026-10-10T00:00:00+07:00",
+  endDate: "2026-10-20T23:59:59+07:00",
+  bannerTitle: "Ưu đãi hot 🔥",
+  bannerSubtitle: "Giảm 10% cho tất cả sản phẩm và Miễn phí vận chuyển từ 10/10 đến 20/10",
+};
+
 export interface DbPromotionRow {
   id: string;
   name: string;

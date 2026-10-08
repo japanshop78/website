@@ -5,8 +5,7 @@ import { PRODUCTS as DEFAULT_PRODUCTS, Product } from "@/data/products";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category } from "@/data/categories";
 import { CATEGORY_PRODUCTS as DEFAULT_CATEGORY_PRODUCTS, CategoryProductMapping } from "@/data/categoryProducts";
 import { FEATURED_PRODUCT_ORDER as DEFAULT_ORDER, ProductOrder } from "@/data/order";
-import DEFAULT_PROMOTION from "@/data/promotions.json";
-import { PromotionCampaign, DbPromotionRow, isCampaignActive } from "@/types/promotion";
+import { PromotionCampaign, DbPromotionRow, isCampaignActive, DEFAULT_PROMOTION } from "@/types/promotion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 
@@ -187,7 +186,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [categoryProducts, setCategoryProductsState] = useState<CategoryProductMapping[]>(DEFAULT_CATEGORY_PRODUCTS);
   const [orders, setOrders] = useState<ProductOrder[]>(DEFAULT_ORDER);
-  const [promotion, setPromotion] = useState<PromotionCampaign>(DEFAULT_PROMOTION as unknown as PromotionCampaign);
+  const [promotion, setPromotion] = useState<PromotionCampaign>(DEFAULT_PROMOTION);
   const [isLoaded, setIsLoaded] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseConnectionStatus>("loading");
 
@@ -260,13 +259,13 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         setPromotion({
           id: p.id || "active_campaign",
           name: p.name || DEFAULT_PROMOTION.name,
-          isActive: typeof p.is_active === "boolean" ? p.is_active : DEFAULT_PROMOTION.is_active,
-          discountPercent: typeof p.discount_percent === "number" ? p.discount_percent : DEFAULT_PROMOTION.discount_percent,
-          isFreeship: typeof p.is_freeship === "boolean" ? p.is_freeship : DEFAULT_PROMOTION.is_freeship,
-          startDate: p.start_date || DEFAULT_PROMOTION.start_date,
-          endDate: p.end_date || DEFAULT_PROMOTION.end_date,
-          bannerTitle: p.banner_title || DEFAULT_PROMOTION.banner_title,
-          bannerSubtitle: p.banner_subtitle || DEFAULT_PROMOTION.banner_subtitle,
+          isActive: typeof p.is_active === "boolean" ? p.is_active : DEFAULT_PROMOTION.isActive,
+          discountPercent: typeof p.discount_percent === "number" ? p.discount_percent : DEFAULT_PROMOTION.discountPercent,
+          isFreeship: typeof p.is_freeship === "boolean" ? p.is_freeship : DEFAULT_PROMOTION.isFreeship,
+          startDate: p.start_date || DEFAULT_PROMOTION.startDate,
+          endDate: p.end_date || DEFAULT_PROMOTION.endDate,
+          bannerTitle: p.banner_title || DEFAULT_PROMOTION.bannerTitle,
+          bannerSubtitle: p.banner_subtitle || DEFAULT_PROMOTION.bannerSubtitle,
           updatedAt: p.updated_at,
         });
       }
@@ -429,13 +428,13 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         await supabase.from("promotions").upsert({
           id: DEFAULT_PROMOTION.id,
           name: DEFAULT_PROMOTION.name,
-          is_active: DEFAULT_PROMOTION.is_active,
-          discount_percent: DEFAULT_PROMOTION.discount_percent,
-          is_freeship: DEFAULT_PROMOTION.is_freeship,
-          start_date: DEFAULT_PROMOTION.start_date,
-          end_date: DEFAULT_PROMOTION.end_date,
-          banner_title: DEFAULT_PROMOTION.banner_title,
-          banner_subtitle: DEFAULT_PROMOTION.banner_subtitle,
+          is_active: DEFAULT_PROMOTION.isActive,
+          discount_percent: DEFAULT_PROMOTION.discountPercent,
+          is_freeship: DEFAULT_PROMOTION.isFreeship,
+          start_date: DEFAULT_PROMOTION.startDate,
+          end_date: DEFAULT_PROMOTION.endDate,
+          banner_title: DEFAULT_PROMOTION.bannerTitle,
+          banner_subtitle: DEFAULT_PROMOTION.bannerSubtitle,
           updated_at: new Date().toISOString(),
         }, { onConflict: "id" });
       } catch {

@@ -1,0 +1,11 @@
+{
+  "id": "active_campaign",
+  "name": "Ưu đãi hot 10/10",
+  "is_active": true,
+  "discount_percent": 10,
+  "is_freeship": true,
+  "start_date": "2026-10-10T00:00:00+07:00",
+  "end_date": "2026-10-20T23:59:59+07:00",
+  "banner_title": "Ưu đãi hot 🔥",
+  "banner_subtitle": "Giảm 10% cho tất cả sản phẩm và Miễn phí vận chuyển từ 10/10 đến 20/10"
+}
