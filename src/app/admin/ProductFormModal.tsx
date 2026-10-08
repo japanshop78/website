@@ -46,6 +46,7 @@ export default function ProductFormModal({
   const [description, setDescription] = useState("");
   const [ingredients, setIngredients] = useState("");
   const [isCustomPath, setIsCustomPath] = useState(false);
+  const [visible, setVisible] = useState(true);
 
   useEffect(() => {
     if (initialProduct) {
@@ -64,6 +65,7 @@ export default function ProductFormModal({
       setImage(imgText);
       setDescription(initialProduct.description || "");
       setIngredients(initialProduct.ingredients || "");
+      setVisible(initialProduct.visible !== false);
     } else {
       // Defaults for new product
       setId("");
@@ -78,6 +80,7 @@ export default function ProductFormModal({
       setImage("/images/C-01-01.jpg");
       setDescription("CÔNG DỤNG:\n- Công dụng 1...\n- Công dụng 2...");
       setIngredients("Xuất xứ: Nhật Bản\n\nThành phần:\n- ");
+      setVisible(true);
     }
   }, [initialProduct, initialOrder, isOpen]);
 
@@ -109,6 +112,7 @@ export default function ProductFormModal({
       ingredients: ingredients.trim() || undefined,
       rating: Math.min(5, Math.max(1, Number(rating) || 5)),
       reviews: Math.max(0, Number(reviews) || 0),
+      visible,
     });
 
     onClose();
@@ -270,6 +274,29 @@ export default function ProductFormModal({
                     className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-500 font-mono"
                   />
                 </div>
+              </div>
+
+              {/* Trạng thái hiển thị */}
+              <div className="rounded-2xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/60 p-3 flex items-center justify-between">
+                <div>
+                  <span className="text-xs font-bold text-zinc-900 dark:text-white block">
+                    Hiển thị trên website
+                  </span>
+                  <span className="text-[11px] text-zinc-500 dark:text-zinc-400">
+                    {visible
+                      ? "🟢 Sản phẩm đang hiển thị công khai trên website"
+                      : "⚪ Sản phẩm đang bị ẩn khỏi khách hàng (vẫn lưu trong hệ thống)"}
+                  </span>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer shrink-0">
+                  <input
+                    type="checkbox"
+                    checked={visible}
+                    onChange={(e) => setVisible(e.target.checked)}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-zinc-200 peer-focus:outline-none rounded-full peer dark:bg-zinc-700 peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-zinc-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all dark:border-zinc-600 peer-checked:bg-emerald-600"></div>
+                </label>
               </div>
 
               {/* Preview Hình Ảnh & Bộ chọn ảnh */}

@@ -4,7 +4,9 @@ import React, { useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
+import { useProductData } from "@/context/ProductDataContext";
 import { Product } from "@/data/products";
+import { getProductPricing } from "@/types/promotion";
 import { getAssetPath } from "@/utils/assetPath";
 import CloseIcon from "./icons/CloseIcon";
 import TrashIcon from "./icons/TrashIcon";
@@ -22,6 +24,11 @@ export default function CartDrawer() {
     updateQuantity,
     removeFromCart,
   } = useCart();
+  const { promotion, isPromotionActive } = useProductData();
+
+  const hasPromo = isPromotionActive && (promotion?.discountPercent || 0) > 0;
+  const discountAmount = hasPromo ? Math.floor((totalPrice * (promotion.discountPercent || 10)) / 100 / 1000) * 1000 : 0;
+  const drawerTotal = Math.max(0, totalPrice - discountAmount);
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -97,6 +104,7 @@ export default function CartDrawer() {
             ) : (
               items.map((item) => {
                 const imgUrl = item.product.images?.[0] || "/logo.jpg";
+                const pricing = getProductPricing(item.product, promotion, isPromotionActive);
                 return (
                   <div key={item.product.id} className="py-3 flex gap-3.5 items-center">
                     {/* Thumbnail */}
@@ -121,11 +129,11 @@ export default function CartDrawer() {
                       </Link>
                       <div className="mt-1 flex items-baseline gap-2">
                         <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                          {formatPrice(item.product.price)}
+                          {formatPrice(pricing.effectivePrice)}
                         </span>
-                        {item.product.oldPrice && item.product.oldPrice > item.product.price && (
+                        {pricing.effectiveOldPrice && pricing.effectiveOldPrice > pricing.effectivePrice && (
                           <span className="text-[10px] text-zinc-400 line-through">
-                            {formatPrice(item.product.oldPrice)}
+                            {formatPrice(pricing.effectiveOldPrice)}
                           </span>
                         )}
                       </div>
@@ -173,14 +181,34 @@ export default function CartDrawer() {
           {/* Footer with Subtotal & CTA */}
           {items.length > 0 && (
             <div className="border-t border-zinc-200 dark:border-zinc-800 p-5 space-y-3 bg-zinc-50/50 dark:bg-zinc-900/50 shrink-0">
-              <div className="flex items-center justify-between text-sm">
-                <span className="text-zinc-600 dark:text-zinc-400">Tạm tính:</span>
-                <span className="text-base font-extrabold text-zinc-900 dark:text-white">
-                  {formatPrice(totalPrice)}
-                </span>
+              <div className="space-y-1.5 text-xs">
+                <div className="flex items-center justify-between text-zinc-600 dark:text-zinc-400">
+                  <span>Tạm tính:</span>
+                  <span className={`font-bold ${hasPromo ? "line-through text-zinc-400" : "text-zinc-900 dark:text-white text-sm"}`}>
+                    {formatPrice(totalPrice)}
+                  </span>
+                </div>
+                {hasPromo && (
+                  <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/40 px-2 py-1 rounded">
+                    <span>{promotion?.name || "Ưu đãi hot"} (-{promotion?.discountPercent || 10}%):</span>
+                    <span>-{formatPrice(discountAmount)}</span>
+                  </div>
+                )}
+                {isPromotionActive && promotion?.isFreeship && (
+                  <div className="flex items-center justify-between text-emerald-600 dark:text-emerald-400 font-bold text-[11px]">
+                    <span>Vận chuyển:</span>
+                    <span>🎉 Miễn phí</span>
+                  </div>
+                )}
+                <div className="flex items-center justify-between border-t border-zinc-200 dark:border-zinc-800 pt-2 text-sm">
+                  <span className="font-bold text-zinc-900 dark:text-white">Tổng cộng:</span>
+                  <span className="text-base font-black text-rose-600 dark:text-rose-400">
+                    {formatPrice(drawerTotal)}
+                  </span>
+                </div>
               </div>
 
-              <div className="grid grid-cols-2 gap-2.5">
+              <div className="grid grid-cols-2 gap-2.5 pt-1">
                 <button
                   type="button"
                   onClick={closeCartDrawer}

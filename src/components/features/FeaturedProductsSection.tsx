@@ -8,16 +8,14 @@ import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
 import { analytics } from "@/utils/analytics";
+import { getProductPricing } from "@/types/promotion";
 import { StarIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
-const calcDiscount = (price: number, oldPrice: number) =>
-  Math.round(((oldPrice - price) / oldPrice) * 100);
-
 export default function FeaturedProductsSection() {
-  const { getFeaturedProducts, getCategoryIdByProductId, categories } = useProductData();
+  const { getFeaturedProducts, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -51,20 +49,58 @@ export default function FeaturedProductsSection() {
 
   const [currentIndex, setCurrentIndex] = useState(listLen);
 
+  // Keep currentIndex aligned if listLen changes
+  useEffect(() => {
+    if (listLen > 0 && (currentIndex < listLen || currentIndex >= listLen * 2)) {
+      setIsTransitioning(false);
+      setCurrentIndex(listLen);
+    }
+  }, [listLen]);
+
+  // Pause when tab is inactive/minimized, and safely re-align when user returns
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsPaused(true);
+      } else {
+        setIsPaused(false);
+        setIsTransitioning(false);
+        setCurrentIndex((prev) => (listLen > 0 ? listLen + (prev % listLen) : 0));
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [listLen]);
+
   const handleNext = useCallback(() => {
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev + 1);
-  }, []);
+    if (listLen === 0) return;
+    setCurrentIndex((prev) => {
+      if (prev >= listLen * 2) {
+        setIsTransitioning(false);
+        return listLen + 1;
+      }
+      setIsTransitioning(true);
+      return prev + 1;
+    });
+  }, [listLen]);
 
   const handlePrev = useCallback(() => {
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev - 1);
-  }, []);
+    if (listLen === 0) return;
+    setCurrentIndex((prev) => {
+      if (prev <= listLen - 1) {
+        setIsTransitioning(false);
+        return listLen * 2 - 2;
+      }
+      setIsTransitioning(true);
+      return prev - 1;
+    });
+  }, [listLen]);
 
-  // Auto-play animation running from right to left every 3 seconds
+  // Auto-play animation running from right to left every 3 seconds (pauses when tab hidden)
   useEffect(() => {
     if (isPaused || listLen === 0) return;
     const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
       handleNext();
     }, 3000);
     return () => clearInterval(interval);
@@ -72,12 +108,13 @@ export default function FeaturedProductsSection() {
 
   // Seamless jump when reaching boundaries
   const handleTransitionEnd = () => {
+    if (listLen === 0) return;
     if (currentIndex >= listLen * 2) {
       setIsTransitioning(false);
-      setCurrentIndex(currentIndex - listLen);
+      setCurrentIndex((prev) => listLen + (prev % listLen));
     } else if (currentIndex < listLen) {
       setIsTransitioning(false);
-      setCurrentIndex(currentIndex + listLen);
+      setCurrentIndex((prev) => listLen + (prev % listLen));
     }
   };
 
@@ -124,9 +161,6 @@ export default function FeaturedProductsSection() {
             <h2 className="text-3xl font-bold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
               Sản Phẩm Bán Chạy
             </h2>
-            <p className="mt-2 text-sm text-zinc-500 dark:text-zinc-400">
-              Được mua nhiều nhất tuần này
-            </p>
           </div>
 
           {/* Navigation Controls in Header */}
@@ -194,10 +228,12 @@ export default function FeaturedProductsSection() {
                 const isJustAdded = addedId === product.id;
 
                 const primaryImage = product.images?.[0] || "";
-                const discount =
-                  product.oldPrice && product.oldPrice > product.price
-                    ? calcDiscount(product.price, product.oldPrice)
-                    : null;
+                const {
+                  effectivePrice,
+                  effectiveOldPrice,
+                  discountPercent: discount,
+                  savingsAmount,
+                } = getProductPricing(product, promotion, isPromotionActive);
 
                 return (
                   <div
@@ -234,7 +270,7 @@ export default function FeaturedProductsSection() {
                           )}
 
                           {discount && (
-                            <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
+                            <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-xs font-bold flex items-center justify-center shadow-md tracking-tight z-10">
                               -{discount}%
                             </span>
                           )}
@@ -268,13 +304,22 @@ export default function FeaturedProductsSection() {
                       {/* Price & Action */}
                       <div className="mt-4 flex items-center justify-between z-10">
                         <div className="flex flex-col">
-                          <span className="text-xs text-zinc-400 line-through">
-                            {product.oldPrice && product.oldPrice > product.price
-                              ? formatPrice(product.oldPrice)
-                              : "\u00A0"}
-                          </span>
+                          {effectiveOldPrice && effectiveOldPrice > effectivePrice ? (
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-xs text-zinc-400 line-through">
+                                {formatPrice(effectiveOldPrice)}
+                              </span>
+                              {savingsAmount > 0 && (
+                                <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                  -{formatPrice(savingsAmount)}
+                                </span>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-xs text-transparent">{"\u00A0"}</span>
+                          )}
                           <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                            {formatPrice(product.price)}
+                            {formatPrice(effectivePrice)}
                           </span>
                         </div>
                         <button

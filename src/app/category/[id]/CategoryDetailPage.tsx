@@ -8,6 +8,7 @@ import { Product } from "@/data/products";
 import { CategoryStats } from "@/services/categoryService";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
+import { getProductPricing } from "@/types/promotion";
 import {
   ShirtIcon,
   DeviceIcon,
@@ -52,15 +53,18 @@ export default function CategoryDetailPage({
   stats,
   allCategories
 }: Props) {
-  const { getProductsByCategoryId, isLoaded } = useProductData();
+  const { getProductsByCategoryId, isLoaded, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
   const activeProducts = useMemo(() => {
-    return isLoaded ? getProductsByCategoryId(category.id) : products;
+    const list = isLoaded ? getProductsByCategoryId(category.id) : products;
+    return list.filter((p) => p.visible !== false);
   }, [isLoaded, getProductsByCategoryId, category.id, products]);
 
   const activeStats = useMemo(() => {
     if (activeProducts.length === 0) return stats;
-    const prices = activeProducts.map((p) => p.price);
+    const prices = activeProducts.map(
+      (p) => getProductPricing(p, promotion, isPromotionActive).effectivePrice
+    );
     return {
       totalProducts: activeProducts.length,
       minPrice: Math.min(...prices),
@@ -70,7 +74,7 @@ export default function CategoryDetailPage({
       ),
       totalReviews: activeProducts.reduce((acc, p) => acc + p.reviews, 0),
     };
-  }, [activeProducts, stats]);
+  }, [activeProducts, stats, promotion, isPromotionActive]);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedSubcategory, setSelectedSubcategory] = useState<string>("all");
@@ -141,26 +145,41 @@ export default function CategoryDetailPage({
       );
     }
 
-    // Price filter
+    // Price filter (theo giá bán thực tế)
     if (priceFilter === "under-500k") {
-      result = result.filter((p) => p.price < 500000);
+      result = result.filter(
+        (p) => getProductPricing(p, promotion, isPromotionActive).effectivePrice < 500000
+      );
     } else if (priceFilter === "500k-1m") {
-      result = result.filter((p) => p.price >= 500000 && p.price <= 1000000);
+      result = result.filter((p) => {
+        const pr = getProductPricing(p, promotion, isPromotionActive).effectivePrice;
+        return pr >= 500000 && pr <= 1000000;
+      });
     } else if (priceFilter === "above-1m") {
-      result = result.filter((p) => p.price > 1000000);
+      result = result.filter(
+        (p) => getProductPricing(p, promotion, isPromotionActive).effectivePrice > 1000000
+      );
     }
 
-    // Sorting
+    // Sorting (theo giá bán thực tế)
     if (sortBy === "price-asc") {
-      result.sort((a, b) => a.price - b.price);
+      result.sort(
+        (a, b) =>
+          getProductPricing(a, promotion, isPromotionActive).effectivePrice -
+          getProductPricing(b, promotion, isPromotionActive).effectivePrice
+      );
     } else if (sortBy === "price-desc") {
-      result.sort((a, b) => b.price - a.price);
+      result.sort(
+        (a, b) =>
+          getProductPricing(b, promotion, isPromotionActive).effectivePrice -
+          getProductPricing(a, promotion, isPromotionActive).effectivePrice
+      );
     } else if (sortBy === "rating") {
       result.sort((a, b) => b.rating - a.rating);
     }
 
     return result;
-  }, [products, searchQuery, selectedSubcategory, priceFilter, sortBy]);
+  }, [activeProducts, searchQuery, selectedSubcategory, priceFilter, sortBy, promotion, isPromotionActive]);
 
   const otherCategories = allCategories.filter((c) => c.id !== category.id);
 
@@ -189,18 +208,18 @@ export default function CategoryDetailPage({
         <div className="relative w-full px-4 py-12 sm:px-6 lg:px-8 sm:py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
+              {/* <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
                 {renderCategoryIcon(category.iconName, "h-4 w-4")}
                 <span>{category.name}</span>
                 <span className="opacity-60">•</span>
                 <span className="opacity-90">{activeStats.totalProducts} sản phẩm hiện có</span>
-              </div>
+              </div> */}
               <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
                 {category.name}
               </h1>
-              <p className="mt-3 text-base text-zinc-100 sm:text-lg max-w-xl leading-relaxed">
+              {/* <p className="mt-3 text-base text-zinc-100 sm:text-lg max-w-xl leading-relaxed">
                 {category.description}
-              </p>
+              </p> */}
 
               {/* Subcategories tags */}
               {category.subcategories && category.subcategories.length > 0 && (
@@ -399,9 +418,9 @@ export default function CategoryDetailPage({
 
         {/* Product Count indicator */}
         <div className="mt-6 mb-4 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
-          <p>
+          {/* <p>
             Hiển thị <span className="font-semibold text-zinc-900 dark:text-white">{filteredProducts.length}</span> sản phẩm
-          </p>
+          </p> */}
         </div>
 
         {/* Empty State */}
@@ -433,10 +452,12 @@ export default function CategoryDetailPage({
         {filteredProducts.length > 0 && viewMode === "grid" && (
           <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product, index) => {
-              const discount =
-                product.oldPrice && product.oldPrice > product.price
-                  ? calcDiscount(product.price, product.oldPrice)
-                  : null;
+              const {
+                effectivePrice,
+                effectiveOldPrice,
+                discountPercent: discount,
+                savingsAmount,
+              } = getProductPricing(product, promotion, isPromotionActive);
               const isAdded = addedProductId === product.id;
               const primaryImage = product.images?.[0] || "";
 
@@ -502,13 +523,20 @@ export default function CategoryDetailPage({
                   {/* Price & Action */}
                   <div className="mt-5 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3 z-10">
                     <div className="flex flex-col">
-                      {product.oldPrice && product.oldPrice > product.price && (
-                        <span className="text-xs text-zinc-400 line-through">
-                          {formatPrice(product.oldPrice)}
-                        </span>
+                      {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
+                        <div className="flex items-center gap-1.5 flex-wrap">
+                          <span className="text-xs text-zinc-400 line-through">
+                            {formatPrice(effectiveOldPrice)}
+                          </span>
+                          {savingsAmount > 0 && (
+                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                              -{formatPrice(savingsAmount)}
+                            </span>
+                          )}
+                        </div>
                       )}
                       <span className="text-base font-bold text-zinc-900 dark:text-white">
-                        {formatPrice(product.price)}
+                        {formatPrice(effectivePrice)}
                       </span>
                     </div>
 
@@ -538,10 +566,12 @@ export default function CategoryDetailPage({
         {filteredProducts.length > 0 && viewMode === "list" && (
           <div className="flex flex-col gap-4">
             {filteredProducts.map((product, index) => {
-              const discount =
-                product.oldPrice && product.oldPrice > product.price
-                  ? calcDiscount(product.price, product.oldPrice)
-                  : null;
+              const {
+                effectivePrice,
+                effectiveOldPrice,
+                discountPercent: discount,
+                savingsAmount,
+              } = getProductPricing(product, promotion, isPromotionActive);
               const isAdded = addedProductId === product.id;
               const primaryImage = product.images?.[0] || "";
 
@@ -604,13 +634,18 @@ export default function CategoryDetailPage({
                     </div>
 
                     <div className="mt-4 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
-                      <div className="flex items-baseline gap-2">
+                      <div className="flex items-baseline gap-2 flex-wrap">
                         <span className="text-xl font-extrabold text-zinc-900 dark:text-white">
-                          {formatPrice(product.price)}
+                          {formatPrice(effectivePrice)}
                         </span>
-                        {product.oldPrice && product.oldPrice > product.price && (
+                        {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
                           <span className="text-xs text-zinc-400 line-through">
-                            {formatPrice(product.oldPrice)}
+                            {formatPrice(effectiveOldPrice)}
+                          </span>
+                        )}
+                        {savingsAmount > 0 && (
+                          <span className="text-xs font-bold text-emerald-600 dark:text-emerald-400">
+                            -{formatPrice(savingsAmount)}
                           </span>
                         )}
                       </div>

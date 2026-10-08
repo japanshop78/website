@@ -7,6 +7,7 @@ import { useRouter } from "next/navigation";
 import { useProductData } from "@/context/ProductDataContext";
 import { Product } from "@/data/products";
 import { getAssetPath } from "@/utils/assetPath";
+import { getProductPricing } from "@/types/promotion";
 import SearchIcon from "./icons/SearchIcon";
 import CloseIcon from "./icons/CloseIcon";
 
@@ -20,7 +21,7 @@ interface LiveSearchDropdownProps {
 
 export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: LiveSearchDropdownProps) {
   const router = useRouter();
-  const { products, categories, getCategoryIdByProductId } = useProductData();
+  const { products, categories, getCategoryIdByProductId, promotion, isPromotionActive } = useProductData();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
@@ -71,6 +72,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     const q = debouncedQuery.toLowerCase();
     return products
       .filter((p) => {
+        if (p.visible === false) return false;
         return (
           p.name.toLowerCase().includes(q) ||
           (p.description && p.description.toLowerCase().includes(q)) ||
@@ -186,6 +188,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                     const catId = getCategoryIdByProductId(product.id);
                     const catName = catId ? categoryMap.get(catId) : null;
                     const isSelected = selectedIndex === idx;
+                    const { effectivePrice, effectiveOldPrice } = getProductPricing(product, promotion, isPromotionActive);
 
                     return (
                       <Link
@@ -229,11 +232,11 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                           </p>
                           <div className="flex items-baseline gap-2 mt-0.5">
                             <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
-                              {formatPrice(product.price)}
+                              {formatPrice(effectivePrice)}
                             </span>
-                            {product.oldPrice && product.oldPrice > product.price && (
+                            {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
                               <span className="text-[10px] text-zinc-400 line-through">
-                                {formatPrice(product.oldPrice)}
+                                {formatPrice(effectiveOldPrice)}
                               </span>
                             )}
                           </div>

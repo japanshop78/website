@@ -5,6 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useProductData } from "@/context/ProductDataContext";
 import { Product } from "@/data/products";
+import { PromotionCampaign } from "@/types/promotion";
 import { getAssetPath } from "@/utils/assetPath";
 import SearchIcon from "@/components/icons/SearchIcon";
 import PlusIcon from "@/components/icons/PlusIcon";
@@ -54,12 +55,57 @@ export default function DiscountManagement() {
     getCategoryIdByProductId,
     updateProduct,
     setBannerProducts,
+    promotion,
+    updatePromotion,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [onlyDiscounted, setOnlyDiscounted] = useState(true);
   const [previewMode, setPreviewMode] = useState<"table" | "list" | "preview">("table");
+
+  // Promotional Campaign state from Supabase
+  const [promoForm, setPromoForm] = useState<PromotionCampaign>(promotion);
+  const [isPromoSaving, setIsPromoSaving] = useState(false);
+  const [promoSaveToast, setPromoSaveToast] = useState(false);
+
+  useEffect(() => {
+    if (promotion) {
+      setPromoForm(promotion);
+    }
+  }, [promotion]);
+
+  const handleSavePromo = async () => {
+    setIsPromoSaving(true);
+    const ok = await updatePromotion(promoForm);
+    setIsPromoSaving(false);
+    if (ok) {
+      setPromoSaveToast(true);
+      setTimeout(() => setPromoSaveToast(false), 3000);
+    } else {
+      alert("Lỗi cập nhật cấu hình ưu đãi lên Supabase!");
+    }
+  };
+
+  const handleResetPromoDefaults = async () => {
+    if (window.confirm("Khôi phục cấu hình ưu đãi về mặc định (10/10 - 20/10, Giảm 10%, Freeship)?")) {
+      const defaults: PromotionCampaign = {
+        id: "active_campaign",
+        name: "Ưu đãi hot 10/10",
+        isActive: true,
+        discountPercent: 10,
+        isFreeship: true,
+        startDate: "2026-10-10T00:00:00+07:00",
+        endDate: "2026-10-20T23:59:59+07:00",
+        bannerTitle: "Ưu đãi hot 🔥",
+        bannerSubtitle: "Giảm 10% cho tất cả sản phẩm và Miễn phí vận chuyển từ 10/10 đến 20/10",
+      };
+      setPromoForm(defaults);
+      await updatePromotion(defaults);
+      setPromoSaveToast(true);
+      setTimeout(() => setPromoSaveToast(false), 3000);
+    }
+  };
 
   // Local working state for the 10 slots (index 0 to 9)
   const [localSlots, setLocalSlots] = useState<(Product | null)[]>(() =>
@@ -415,6 +461,136 @@ export default function DiscountManagement() {
           >
             👁 Xem trang chủ
           </Link>
+        </div>
+      </div>
+
+      {/* KHUNG QUẢN LÝ CHIẾN DỊCH ƯU ĐÃI TOÀN SÀN (SUPABASE) */}
+      <div className="rounded-3xl border border-rose-200/80 dark:border-rose-900/40 bg-gradient-to-br from-rose-50/50 via-white to-amber-50/30 dark:from-rose-950/20 dark:via-zinc-900 dark:to-amber-950/10 p-5 sm:p-6 shadow-sm">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-rose-100 dark:border-rose-900/30 pb-4 mb-5">
+          <div className="flex items-center gap-3">
+            <span className="flex h-10 w-10 items-center justify-center rounded-2xl bg-gradient-to-br from-rose-500 to-amber-500 text-white text-lg shadow-md">
+              🔥
+            </span>
+            <div>
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-extrabold text-zinc-900 dark:text-white">
+                  Chiến Dịch Ưu Đãi Toàn Sàn (Supabase)
+                </h3>
+                <span className={`px-2 py-0.5 rounded-full text-[10px] font-black uppercase ${promoForm.isActive ? "bg-emerald-100 text-emerald-700 dark:bg-emerald-950 dark:text-emerald-300" : "bg-zinc-200 text-zinc-600 dark:bg-zinc-800 dark:text-zinc-400"}`}>
+                  {promoForm.isActive ? "Đang bật" : "Đã tắt"}
+                </span>
+              </div>
+              <p className="text-xs text-zinc-500 dark:text-zinc-400">
+                Tự động áp dụng giảm % toàn bộ sản phẩm và Freeship cho toàn bộ giỏ hàng, đồng bộ tức thì lên Supabase Cloud.
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2">
+            <button
+              type="button"
+              onClick={handleResetPromoDefaults}
+              className="px-3 py-2 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+            >
+              🔄 Mặc định 10/10
+            </button>
+            <button
+              type="button"
+              onClick={handleSavePromo}
+              disabled={isPromoSaving}
+              className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md hover:shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+            >
+              {isPromoSaving ? "Đang lưu..." : "💾 Lưu ưu đãi lên Supabase"}
+            </button>
+          </div>
+        </div>
+
+        {promoSaveToast && (
+          <div className="mb-4 rounded-xl bg-emerald-500 text-white text-xs font-bold px-4 py-2.5 shadow-md flex items-center gap-2 animate-in fade-in">
+            <span>✓ Đã lưu cấu hình ưu đãi thành công lên Supabase Cloud!</span>
+          </div>
+        )}
+
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 text-xs">
+          {/* Trạng thái Bật/Tắt */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2">
+            <label className="font-bold text-zinc-800 dark:text-zinc-200 block">
+              Trạng thái chiến dịch
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={promoForm.isActive}
+                onChange={(e) => setPromoForm({ ...promoForm, isActive: e.target.checked })}
+                className="h-4 w-4 rounded text-rose-600 focus:ring-rose-500"
+              />
+              <span className="font-semibold text-zinc-700 dark:text-zinc-300">
+                {promoForm.isActive ? "🟢 Đang kích hoạt" : "⚪ Tạm dừng ưu đãi"}
+              </span>
+            </label>
+            <p className="text-[11px] text-zinc-400">
+              Gạt tắt nếu muốn kết thúc chiến dịch trước thời hạn.
+            </p>
+          </div>
+
+          {/* Mức giảm % */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2">
+            <label className="font-bold text-zinc-800 dark:text-zinc-200 block">
+              Mức giảm giá (% toàn sàn)
+            </label>
+            <div className="flex items-center gap-2">
+              <input
+                type="number"
+                min="0"
+                max="100"
+                value={promoForm.discountPercent}
+                onChange={(e) => setPromoForm({ ...promoForm, discountPercent: Number(e.target.value) || 0 })}
+                className="w-24 px-3 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 font-black text-rose-600 text-sm"
+              />
+              <span className="font-bold text-zinc-500">%</span>
+            </div>
+            <p className="text-[11px] text-zinc-400">
+              Áp dụng giảm trực tiếp và làm tròn về hàng nghìn.
+            </p>
+          </div>
+
+          {/* Vận chuyển Freeship */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2">
+            <label className="font-bold text-zinc-800 dark:text-zinc-200 block">
+              Chính sách Vận chuyển
+            </label>
+            <label className="flex items-center gap-2.5 cursor-pointer">
+              <input
+                type="checkbox"
+                checked={promoForm.isFreeship}
+                onChange={(e) => setPromoForm({ ...promoForm, isFreeship: e.target.checked })}
+                className="h-4 w-4 rounded text-emerald-600 focus:ring-emerald-500"
+              />
+              <span className="font-bold text-emerald-600 dark:text-emerald-400">
+                🚚 Miễn phí vận chuyển
+              </span>
+            </label>
+            <p className="text-[11px] text-zinc-400">
+              Áp dụng cho mọi giá trị đơn hàng trong thời gian deal.
+            </p>
+          </div>
+
+          {/* Thời gian kết thúc */}
+          <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3.5 space-y-2">
+            <label className="font-bold text-zinc-800 dark:text-zinc-200 block">
+              Thời gian kết thúc (Countdown)
+            </label>
+            <input
+              type="text"
+              value={promoForm.endDate}
+              onChange={(e) => setPromoForm({ ...promoForm, endDate: e.target.value })}
+              placeholder="2026-10-20T23:59:59+07:00"
+              className="w-full px-2.5 py-1.5 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 font-mono text-xs"
+            />
+            <p className="text-[11px] text-zinc-400">
+              Đồng hồ ngoài trang chủ sẽ đếm lùi về thời điểm này.
+            </p>
+          </div>
         </div>
       </div>
 

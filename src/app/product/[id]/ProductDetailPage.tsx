@@ -20,12 +20,10 @@ import ChevronRightIcon from "@/components/icons/ChevronRightIcon";
 import { getAssetPath } from "@/utils/assetPath";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
+import { getProductPricing } from "@/types/promotion";
 
 const formatPrice = (price: number) =>
   price.toLocaleString("vi-VN") + "đ";
-
-const calcDiscount = (price: number, oldPrice: number) =>
-  Math.round(((oldPrice - price) / oldPrice) * 100);
 
 interface Props {
   product: Product;
@@ -34,7 +32,7 @@ interface Props {
 
 export default function ProductDetailPage({ product, related }: Props) {
   const router = useRouter();
-  const { getProductById, getProductsByCategoryId, getCategoryIdByProductId, categories, isLoaded } = useProductData();
+  const { categories, getProductById, getProductsByCategoryId, getCategoryIdByProductId, isLoaded, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
 
   const currentProduct =
@@ -46,9 +44,9 @@ export default function ProductDetailPage({ product, related }: Props) {
   const currentRelated =
     (isLoaded
       ? getProductsByCategoryId(currentProductCategoryId)
-          .filter((p) => p.id !== currentProduct.id)
+          .filter((p) => p.id !== currentProduct.id && p.visible !== false)
           .slice(0, 4)
-      : null) || related;
+      : null) || related.filter((p) => p.visible !== false);
 
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"desc" | "ingredients">("desc");
@@ -94,10 +92,12 @@ export default function ProductDetailPage({ product, related }: Props) {
   };
 
 
-  const discount =
-    currentProduct.oldPrice && currentProduct.oldPrice > currentProduct.price
-      ? calcDiscount(currentProduct.price, currentProduct.oldPrice)
-      : null;
+  const {
+    effectivePrice,
+    effectiveOldPrice,
+    discountPercent: discount,
+    savingsAmount,
+  } = getProductPricing(currentProduct, promotion, isPromotionActive);
 
   const category = categories.find(
     (c) => c.id.toLowerCase() === currentProductCategoryId.toLowerCase()
@@ -228,6 +228,15 @@ export default function ProductDetailPage({ product, related }: Props) {
           <div className="lg:col-span-7 flex flex-col gap-6">
             {/* Category & Name */}
 
+            {currentProduct.visible === false && (
+              <div className="rounded-2xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3.5 flex items-center gap-3">
+                <span className="text-xl">⚠️</span>
+                <div className="text-xs text-amber-800 dark:text-amber-200">
+                  <strong>Sản phẩm này hiện đang tạm ẩn</strong> trên trang chủ và danh mục. Khách hàng thông thường sẽ không tìm thấy sản phẩm này.
+                </div>
+              </div>
+            )}
+
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                 {categoryName}
@@ -264,16 +273,18 @@ export default function ProductDetailPage({ product, related }: Props) {
             {/* Price */}
             <div className="flex items-end gap-4">
               <span className="text-4xl font-extrabold text-zinc-900 dark:text-white">
-                {formatPrice(currentProduct.price)}
+                {formatPrice(effectivePrice)}
               </span>
-              {currentProduct.oldPrice && currentProduct.oldPrice > currentProduct.price && (
+              {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
                 <div className="flex flex-col items-start">
                   <span className="text-lg text-zinc-400 line-through">
-                    {formatPrice(currentProduct.oldPrice)}
+                    {formatPrice(effectiveOldPrice)}
                   </span>
-                  <span className="text-sm font-semibold text-rose-500">
-                    Tiết kiệm {formatPrice(currentProduct.oldPrice - currentProduct.price)}
-                  </span>
+                  {savingsAmount > 0 && (
+                    <span className="text-sm font-semibold text-rose-500">
+                      Tiết kiệm {formatPrice(savingsAmount)}
+                    </span>
+                  )}
                 </div>
               )}
             </div>
@@ -393,10 +404,11 @@ export default function ProductDetailPage({ product, related }: Props) {
             <div className="grid grid-cols-2 gap-5 sm:grid-cols-3 lg:grid-cols-4">
               {currentRelated.map((p) => {
                 const relatedImg = p.images?.[0] || "";
-                const relatedDiscount =
-                  p.oldPrice && p.oldPrice > p.price
-                    ? calcDiscount(p.price, p.oldPrice)
-                    : null;
+                const {
+                  effectivePrice: relatedPrice,
+                  effectiveOldPrice: relatedOldPrice,
+                  discountPercent: relatedDiscount,
+                } = getProductPricing(p, promotion, isPromotionActive);
 
                 return (
                   <Link
@@ -436,11 +448,11 @@ export default function ProductDetailPage({ product, related }: Props) {
                     </p>
                     <div className="mt-1 flex items-center gap-2">
                       <span className="text-sm font-bold text-zinc-900 dark:text-white">
-                        {formatPrice(p.price)}
+                        {formatPrice(relatedPrice)}
                       </span>
-                      {p.oldPrice && p.oldPrice > p.price && (
+                      {relatedOldPrice && relatedOldPrice > relatedPrice && (
                         <span className="text-xs text-zinc-400 line-through">
-                          {formatPrice(p.oldPrice)}
+                          {formatPrice(relatedOldPrice)}
                         </span>
                       )}
                     </div>

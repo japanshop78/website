@@ -13,6 +13,7 @@ export interface Product {
   tag?: string;
   stock: number;
   ingredients?: string;
+  visible?: boolean;
 }
 
 export const PRODUCTS: Product[] = rawProducts as unknown as Product[];

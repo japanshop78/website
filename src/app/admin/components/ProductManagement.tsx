@@ -28,6 +28,7 @@ export default function ProductManagement() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [stockFilter, setStockFilter] = useState("all");
+  const [visibilityFilter, setVisibilityFilter] = useState<"all" | "visible" | "hidden">("all");
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [currentPage, setCurrentPage] = useState(1);
@@ -48,20 +49,26 @@ export default function ProductManagement() {
         (stockFilter === "in_stock" && (p.stock || 0) > 0) ||
         (stockFilter === "out_of_stock" && (p.stock || 0) === 0);
 
+      const isVisible = p.visible !== false;
+      const matchVisibility =
+        visibilityFilter === "all" ||
+        (visibilityFilter === "visible" && isVisible) ||
+        (visibilityFilter === "hidden" && !isVisible);
+
       const q = searchQuery.toLowerCase().trim();
       const matchSearch =
         !q ||
         p.name.toLowerCase().includes(q) ||
         p.id.toLowerCase().includes(q) ||
         (p.tag && p.tag.toLowerCase().includes(q));
-      return matchCat && matchStock && matchSearch;
+      return matchCat && matchStock && matchVisibility && matchSearch;
     });
-  }, [products, selectedCategory, stockFilter, searchQuery, getCategoryIdByProductId]);
+  }, [products, selectedCategory, stockFilter, visibilityFilter, searchQuery, getCategoryIdByProductId]);
 
   // Reset về trang 1 khi thay đổi tìm kiếm hoặc bộ lọc
   useEffect(() => {
     setCurrentPage(1);
-  }, [searchQuery, selectedCategory, stockFilter, pageSize]);
+  }, [searchQuery, selectedCategory, stockFilter, visibilityFilter, pageSize]);
 
   // Tính toán phân trang
   const totalProducts = filteredProducts.length;
@@ -105,6 +112,11 @@ export default function ProductManagement() {
     }
   };
 
+  const handleToggleVisibility = async (p: Product) => {
+    const nextVisible = p.visible === false;
+    await updateProduct(p.id, { visible: nextVisible });
+  };
+
   const handleSaveProduct = (
     data: Omit<Product, "id"> & { id?: string; order?: number }
   ) => {
@@ -141,37 +153,45 @@ export default function ProductManagement() {
       </div>
 
       {/* Quick Stats Grid */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+      <div className="grid grid-cols-2 sm:grid-cols-5 gap-3.5">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Tổng sản phẩm
           </span>
-          <p className="mt-2 text-3xl font-black text-zinc-900 dark:text-white">
+          <p className="mt-1.5 text-2xl font-black text-zinc-900 dark:text-white">
             {products.length}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            Đang còn hàng
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Đang hiển thị
           </span>
-          <p className="mt-2 text-3xl font-black text-emerald-600 dark:text-emerald-400">
+          <p className="mt-1.5 text-2xl font-black text-emerald-600 dark:text-emerald-400">
+            {products.filter((p) => p.visible !== false).length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Đang ẩn
+          </span>
+          <p className="mt-1.5 text-2xl font-black text-zinc-400">
+            {products.filter((p) => p.visible === false).length}
+          </p>
+        </div>
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Còn hàng
+          </span>
+          <p className="mt-1.5 text-2xl font-black text-indigo-600 dark:text-indigo-400">
             {products.filter((p) => (p.stock || 0) > 0).length}
           </p>
         </div>
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs">
+          <span className="text-[11px] font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Hết hàng
           </span>
-          <p className="mt-2 text-3xl font-black text-rose-500">
+          <p className="mt-1.5 text-2xl font-black text-rose-500">
             {products.filter((p) => (p.stock || 0) === 0).length}
-          </p>
-        </div>
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            Tổng tồn kho
-          </span>
-          <p className="mt-2 text-3xl font-black text-indigo-600 dark:text-indigo-400">
-            {products.reduce((sum, p) => sum + (p.stock || 0), 0)}
           </p>
         </div>
       </div>
@@ -230,6 +250,22 @@ export default function ProductManagement() {
               <option value="all">Tất cả trạng thái</option>
               <option value="in_stock">Còn hàng</option>
               <option value="out_of_stock">Hết hàng</option>
+            </select>
+          </div>
+
+          {/* Visibility Filter */}
+          <div className="flex items-center gap-2">
+            <label className="text-xs font-semibold text-zinc-500 dark:text-zinc-400">
+              Hiển thị:
+            </label>
+            <select
+              value={visibilityFilter}
+              onChange={(e) => setVisibilityFilter(e.target.value as "all" | "visible" | "hidden")}
+              className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-semibold text-zinc-800 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
+            >
+              <option value="all">Tất cả ({products.length})</option>
+              <option value="visible">Đang hiển thị ({products.filter((p) => p.visible !== false).length})</option>
+              <option value="hidden">Đang ẩn ({products.filter((p) => p.visible === false).length})</option>
             </select>
           </div>
         </div>
@@ -360,10 +396,15 @@ export default function ProductManagement() {
                             )}
                           </div>
                           <div className="max-w-md">
-                            <div className="flex items-center gap-2">
+                            <div className="flex items-center gap-2 flex-wrap">
                               <span className="font-mono text-xs font-semibold text-zinc-400">
                                 #{p.id}
                               </span>
+                              {p.visible === false && (
+                                <span className="rounded-full bg-zinc-200 dark:bg-zinc-800 text-zinc-600 dark:text-zinc-400 border border-zinc-300 dark:border-zinc-700 px-2 py-0.5 text-[10px] font-bold">
+                                  🚫 Đang ẩn
+                                </span>
+                              )}
                               {p.tag && (
                                 <span className="rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 px-2 py-0.5 text-[10px] font-bold">
                                   {p.tag}
@@ -432,14 +473,32 @@ export default function ProductManagement() {
 
                       {/* Actions */}
                       <td className="py-4 px-4 sm:px-6 text-right">
-                        <div className="flex items-center justify-end gap-2">
+                        <div className="flex items-center justify-end gap-1.5">
+                          {/* Toggle Visibility 1-click */}
+                          <button
+                            type="button"
+                            onClick={() => handleToggleVisibility(p)}
+                            className={`p-1.5 rounded-lg text-sm transition-colors cursor-pointer ${
+                              p.visible !== false
+                                ? "text-emerald-600 hover:bg-emerald-50 dark:hover:bg-emerald-950/40"
+                                : "text-zinc-400 hover:text-zinc-600 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                            }`}
+                            title={
+                              p.visible !== false
+                                ? "Đang hiển thị công khai (Bấm để ẩn)"
+                                : "Đang bị ẩn (Bấm để hiển thị lại)"
+                            }
+                          >
+                            {p.visible !== false ? "👁️" : "🚫"}
+                          </button>
+
                           <Link
                             href={`/product/${p.id}`}
                             target="_blank"
-                            className="rounded-lg p-2 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
+                            className="rounded-lg p-1.5 text-zinc-400 hover:text-indigo-600 dark:hover:text-indigo-400 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors"
                             title="Xem chi tiết trên web"
                           >
-                            👁
+                            🔗
                           </Link>
                           <button
                             onClick={() => handleOpenEdit(p)}
