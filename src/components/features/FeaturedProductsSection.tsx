@@ -49,20 +49,58 @@ export default function FeaturedProductsSection() {
 
   const [currentIndex, setCurrentIndex] = useState(listLen);
 
+  // Keep currentIndex aligned if listLen changes
+  useEffect(() => {
+    if (listLen > 0 && (currentIndex < listLen || currentIndex >= listLen * 2)) {
+      setIsTransitioning(false);
+      setCurrentIndex(listLen);
+    }
+  }, [listLen]);
+
+  // Pause when tab is inactive/minimized, and safely re-align when user returns
+  useEffect(() => {
+    const handleVisibilityChange = () => {
+      if (document.hidden) {
+        setIsPaused(true);
+      } else {
+        setIsPaused(false);
+        setIsTransitioning(false);
+        setCurrentIndex((prev) => (listLen > 0 ? listLen + (prev % listLen) : 0));
+      }
+    };
+    document.addEventListener("visibilitychange", handleVisibilityChange);
+    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
+  }, [listLen]);
+
   const handleNext = useCallback(() => {
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev + 1);
-  }, []);
+    if (listLen === 0) return;
+    setCurrentIndex((prev) => {
+      if (prev >= listLen * 2) {
+        setIsTransitioning(false);
+        return listLen + 1;
+      }
+      setIsTransitioning(true);
+      return prev + 1;
+    });
+  }, [listLen]);
 
   const handlePrev = useCallback(() => {
-    setIsTransitioning(true);
-    setCurrentIndex((prev) => prev - 1);
-  }, []);
+    if (listLen === 0) return;
+    setCurrentIndex((prev) => {
+      if (prev <= listLen - 1) {
+        setIsTransitioning(false);
+        return listLen * 2 - 2;
+      }
+      setIsTransitioning(true);
+      return prev - 1;
+    });
+  }, [listLen]);
 
-  // Auto-play animation running from right to left every 3 seconds
+  // Auto-play animation running from right to left every 3 seconds (pauses when tab hidden)
   useEffect(() => {
     if (isPaused || listLen === 0) return;
     const interval = setInterval(() => {
+      if (typeof document !== "undefined" && document.hidden) return;
       handleNext();
     }, 3000);
     return () => clearInterval(interval);
@@ -70,12 +108,13 @@ export default function FeaturedProductsSection() {
 
   // Seamless jump when reaching boundaries
   const handleTransitionEnd = () => {
+    if (listLen === 0) return;
     if (currentIndex >= listLen * 2) {
       setIsTransitioning(false);
-      setCurrentIndex(currentIndex - listLen);
+      setCurrentIndex((prev) => listLen + (prev % listLen));
     } else if (currentIndex < listLen) {
       setIsTransitioning(false);
-      setCurrentIndex(currentIndex + listLen);
+      setCurrentIndex((prev) => listLen + (prev % listLen));
     }
   };
 
