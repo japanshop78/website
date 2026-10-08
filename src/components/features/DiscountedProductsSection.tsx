@@ -8,6 +8,7 @@ import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
 import { analytics } from "@/utils/analytics";
+import { getProductPricing } from "@/types/promotion";
 import {
   StarIcon,
   PlusIcon,
@@ -23,34 +24,34 @@ const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 const calcDiscount = (price: number, oldPrice: number) =>
   Math.round(((oldPrice - price) / oldPrice) * 100);
 
-function getTimeUntilMidnight() {
-  const now = new Date();
-  const midnight = new Date(now);
-  midnight.setHours(23, 59, 59, 999);
-  const diff = Math.max(0, Math.floor((midnight.getTime() - now.getTime()) / 1000));
-  const hours = Math.floor(diff / 3600);
+function getTimeUntilTarget(targetDateStr?: string) {
+  const now = new Date().getTime();
+  const target = targetDateStr ? new Date(targetDateStr).getTime() : 0;
+  const diff = Math.max(0, Math.floor((target - now) / 1000));
+  const days = Math.floor(diff / 86400);
+  const hours = Math.floor((diff % 86400) / 3600);
   const minutes = Math.floor((diff % 3600) / 60);
   const seconds = diff % 60;
-  return { hours, minutes, seconds };
+  return { days, hours, minutes, seconds };
 }
 
 const formatTime = (num: number) => String(num).padStart(2, "0");
 
 export default function DiscountedProductsSection() {
-  const { getProductsByBanner, getCategoryIdByProductId, categories } = useProductData();
+  const { getProductsByBanner, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
   // Countdown timer state
-  const [timeLeft, setTimeLeft] = useState({ hours: 5, minutes: 24, seconds: 18 });
+  const [timeLeft, setTimeLeft] = useState(() => getTimeUntilTarget(promotion?.endDate));
 
   useEffect(() => {
-    setTimeLeft(getTimeUntilMidnight());
+    setTimeLeft(getTimeUntilTarget(promotion?.endDate));
     const timer = setInterval(() => {
-      setTimeLeft(getTimeUntilMidnight());
+      setTimeLeft(getTimeUntilTarget(promotion?.endDate));
     }, 1000);
     return () => clearInterval(timer);
-  }, []);
+  }, [promotion?.endDate]);
 
   // Filter products by banner "discount" (or "Sản phẩm giảm giá")
   const discountedProducts = getProductsByBanner("discount", 15);
@@ -148,50 +149,131 @@ export default function DiscountedProductsSection() {
   const activeDotIndex = ((currentIndex % listLen) + listLen) % listLen;
 
   return (
-    <section className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 py-12 sm:py-16 text-white relative overflow-hidden shadow-inner">
+    <section id="discount-section" className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 py-12 sm:py-16 text-white relative overflow-hidden shadow-inner">
       {/* Ambient Background Glow Orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-400/25 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-full max-w-4xl h-48 bg-white/5 rounded-full blur-3xl pointer-events-none" />
 
       <div className="w-full px-4 sm:px-6 lg:px-8 relative z-10">
-        {/* Header with Title, Countdown Timer and Controls */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
-          <div>
-            <div className="flex flex-wrap items-center gap-3">
-              <h2 className="text-3xl font-extrabold tracking-tight uppercase text-white sm:text-4xl flex items-center gap-2">
-                <span>Ưu đãi hot</span>
-                <span className="text-2xl sm:text-3xl animate-pulse">🔥</span>
-              </h2>
+        {/* Header with Title, Countdown Timer, Marquee and Controls */}
+        <div className="flex flex-col xl:flex-row xl:items-center xl:justify-between gap-4 mb-6">
+          <div className="flex items-center gap-3 flex-1 min-w-0 flex-wrap lg:flex-nowrap">
+            <h2 className="text-3xl font-extrabold tracking-tight uppercase text-white sm:text-4xl flex items-center gap-2 shrink-0">
+              <span>{promotion?.bannerTitle || "Ưu đãi hot 🔥"}</span>
+            </h2>
 
-              {/* Countdown Timer */}
-              <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg">
-                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
-                  <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
-                  <span className="hidden sm:inline">Kết thúc trong:</span>
+            {/* Countdown Timer */}
+            <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg shrink-0">
+              <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
+                <span className="hidden sm:inline">Kết thúc sau:</span>
+              </span>
+              <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white">
+                {timeLeft.days > 0 && (
+                  <>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                      {timeLeft.days}N
+                    </span>
+                    <span className="text-amber-300 font-bold">:</span>
+                  </>
+                )}
+                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                  {formatTime(timeLeft.hours)}
                 </span>
-                <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white">
-                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                    {formatTime(timeLeft.hours)}
+                <span className="text-amber-300 font-bold">:</span>
+                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                  {formatTime(timeLeft.minutes)}
+                </span>
+                <span className="text-amber-300 font-bold">:</span>
+                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
+                  {formatTime(timeLeft.seconds)}
+                </span>
+              </div>
+            </div>
+
+            {/* Seamless Scrolling Marquee Text */}
+            <div className="w-full lg:w-auto lg:flex-1 overflow-hidden py-1 select-none group/marquee min-w-0">
+              <div className="animate-marquee flex items-center whitespace-nowrap">
+                {/* Instance 1 */}
+                <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12">
+                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                    <span className="text-lg sm:text-xl">🔥</span>
+                    <span className="text-amber-100 font-extrabold">
+                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                    </span>
+                    <span className="text-white/40 font-normal">&</span>
+                    <span className="text-rose-100">
+                      Miễn phí vận chuyển
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                      từ 10/10 đến 20/10
+                    </span>
+                    <span className="text-lg sm:text-xl">✨</span>
                   </span>
-                  <span className="text-amber-300 font-bold">:</span>
-                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                    {formatTime(timeLeft.minutes)}
+
+                  <span className="text-white/35 text-base font-normal">✦</span>
+
+                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                    <span className="text-lg sm:text-xl">🎉</span>
+                    <span className="text-amber-100 font-extrabold">
+                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                    </span>
+                    <span className="text-white/40 font-normal">&</span>
+                    <span className="text-rose-100">
+                      Miễn phí vận chuyển
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                      từ 10/10 đến 20/10
+                    </span>
+                    <span className="text-lg sm:text-xl">🎁</span>
                   </span>
-                  <span className="text-amber-300 font-bold">:</span>
-                  <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                    {formatTime(timeLeft.seconds)}
+
+                  <span className="text-white/35 text-base font-normal">✦</span>
+                </div>
+
+                {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
+                <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12" aria-hidden="true">
+                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                    <span className="text-lg sm:text-xl">🔥</span>
+                    <span className="text-amber-100 font-extrabold">
+                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                    </span>
+                    <span className="text-white/40 font-normal">&</span>
+                    <span className="text-rose-100">
+                      Miễn phí vận chuyển
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                      từ 10/10 đến 20/10
+                    </span>
+                    <span className="text-lg sm:text-xl">✨</span>
                   </span>
+
+                  <span className="text-white/35 text-base font-normal">✦</span>
+
+                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                    <span className="text-lg sm:text-xl">🎉</span>
+                    <span className="text-amber-100 font-extrabold">
+                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                    </span>
+                    <span className="text-white/40 font-normal">&</span>
+                    <span className="text-rose-100">
+                      Miễn phí vận chuyển
+                    </span>
+                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                      từ 10/10 đến 20/10
+                    </span>
+                    <span className="text-lg sm:text-xl">🎁</span>
+                  </span>
+
+                  <span className="text-white/35 text-base font-normal">✦</span>
                 </div>
               </div>
             </div>
-            <p className="mt-2 text-sm text-rose-100/90 max-w-xl">
-              Cơ hội săn hàng nội địa Nhật Bản chính hãng với mức giá giảm sâu số lượng có hạn
-            </p>
           </div>
 
           {/* Navigation Controls in Header */}
-          <div className="hidden sm:flex items-center gap-2">
+          <div className="hidden sm:flex items-center gap-2 shrink-0">
             <button
               type="button"
               onClick={handlePrev}
@@ -257,17 +339,12 @@ export default function DiscountedProductsSection() {
                 const isJustAdded = addedId === product.id;
 
                 const primaryImage = product.images?.[0] || "";
-                const discount =
-                  product.oldPrice && product.oldPrice > product.price
-                    ? calcDiscount(product.price, product.oldPrice)
-                    : null;
-
-                // Deterministic stock calculations for realism
-                const numId = parseInt(product.id, 10) || 1;
-                const totalStock = 25 + (numId % 20);
-                const soldCount = Math.min(totalStock - 2, 12 + ((numId * 7) % 18));
-                const percentSold = Math.min(100, Math.round((soldCount / totalStock) * 100));
-                const isHot = percentSold >= 80;
+                const {
+                  effectivePrice,
+                  effectiveOldPrice,
+                  discountPercent: discount,
+                  savingsAmount,
+                } = getProductPricing(product, promotion, isPromotionActive);
 
                 return (
                   <div
@@ -339,46 +416,36 @@ export default function DiscountedProductsSection() {
                         </div>
                       </div>
 
-                      {/* Stock Progress Bar & Price Section */}
-                      <div className="mt-3">
-                        {/* Stock Progress Bar */}
-                        <div className="pt-2 border-t border-zinc-100 dark:border-zinc-800/80 mb-2.5">
-                          <div className="flex items-center justify-between text-[11px] font-bold mb-1">
-                            <span className="flex items-center gap-1 text-rose-600 dark:text-rose-400">
-                              <span className="inline-block animate-bounce">🔥</span>
-                              <span>Đã bán:</span>
-                              <span className="font-extrabold text-zinc-900 dark:text-white">{soldCount}</span>
-                            </span>
-                            <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded ${isHot ? "bg-amber-100 text-amber-800 dark:bg-amber-950 dark:text-amber-300" : "text-zinc-400"}`}>
-                              {isHot ? "Sắp hết" : `Còn ${totalStock - soldCount}`}
-                            </span>
-                          </div>
-                          <div className="relative h-1.5 w-full overflow-hidden rounded-full bg-zinc-100 dark:bg-zinc-800">
-                            <div
-                              className="h-full rounded-full bg-gradient-to-r from-amber-400 via-rose-500 to-red-600 transition-all duration-500"
-                              style={{ width: `${percentSold}%` }}
-                            />
-                          </div>
-                        </div>
+                      {/* Price Section */}
+                      <div className="mt-3.5 pt-2.5 border-t border-zinc-100 dark:border-zinc-800/80">
 
                         {/* Price & Action */}
-                        <div className="flex items-center justify-between z-10">
-                          <div className="flex flex-col">
-                            {product.oldPrice && product.oldPrice > product.price ? (
-                              <span className="text-xs text-zinc-400 line-through">
-                                {formatPrice(product.oldPrice)}
-                              </span>
+                        <div className="flex items-center justify-between z-10 gap-2">
+                          <div className="flex flex-col min-w-0">
+                            {effectiveOldPrice && effectiveOldPrice > effectivePrice ? (
+                              <div className="flex items-center gap-1.5 flex-wrap">
+                                <span className="text-xs text-zinc-400 line-through">
+                                  {formatPrice(effectiveOldPrice)}
+                                </span>
+                                {savingsAmount > 0 && (
+                                  <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                                    -{formatPrice(savingsAmount)}
+                                  </span>
+                                )}
+                              </div>
                             ) : (
                               <span className="text-xs text-transparent">{"\u00A0"}</span>
                             )}
-                            <span className="text-sm font-bold text-rose-600 dark:text-rose-400">
-                              {formatPrice(product.price)}
-                            </span>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              <span className="text-sm font-black text-rose-600 dark:text-rose-400">
+                                {formatPrice(effectivePrice)}
+                              </span>
+                            </div>
                           </div>
                           <button
                             type="button"
                             onClick={() => handleAdd(product)}
-                            className={`rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${
+                            className={`shrink-0 rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${
                               isJustAdded
                                 ? "bg-emerald-600 text-white scale-110"
                                 : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow-rose-600/30 hover:scale-105 active:scale-95"

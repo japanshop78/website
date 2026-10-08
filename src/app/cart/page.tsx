@@ -4,6 +4,8 @@ import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
+import { useProductData } from "@/context/ProductDataContext";
+import { getProductPricing } from "@/types/promotion";
 import { getAssetPath } from "@/utils/assetPath";
 import { orderService } from "@/services/orderService";
 import { analytics } from "@/utils/analytics";
@@ -31,6 +33,7 @@ export default function CartPage() {
     removeFromCart,
     clearCart,
   } = useCart();
+  const { promotion, isPromotionActive } = useProductData();
 
   // Customer info state for checkout
   const [customerName, setCustomerName] = useState("");
@@ -52,9 +55,17 @@ export default function CartPage() {
     zaloMessage?: string;
   } | null>(null);
 
-  // Shipping cost rule: Free ship for orders >= 500.000đ, otherwise 25.000đ
-  const shippingFee = totalPrice >= 500000 || totalPrice === 0 ? 0 : 25000;
-  const finalTotal = totalPrice + shippingFee;
+  // Promotion discounts & Free shipping
+  const hasPromo = isPromotionActive && (promotion?.discountPercent || 0) > 0;
+  const promoPercent = hasPromo ? promotion.discountPercent : 0;
+  const discountAmount = promoPercent > 0
+    ? Math.floor((totalPrice * promoPercent) / 100 / 1000) * 1000
+    : 0;
+
+  // Shipping cost rule: Freeship if campaign active or order >= 500k, otherwise 25k
+  const isFreeShip = (isPromotionActive && promotion.isFreeship) || totalPrice >= 500000 || totalPrice === 0;
+  const shippingFee = isFreeShip ? 0 : 25000;
+  const finalTotal = Math.max(0, totalPrice - discountAmount + shippingFee);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -78,13 +89,19 @@ export default function CartPage() {
       image: it.product.images?.[0] || "",
     }));
 
+    const promoTitle = promotion?.name || "Ưu đãi hot";
+    const promoNote = hasPromo
+      ? `[${promoTitle}: -${promoPercent}% (-${formatPrice(discountAmount)}) ${shippingFee === 0 ? "+ Freeship" : ""}]`
+      : "";
+    const combinedNote = [note.trim(), promoNote].filter(Boolean).join(" ");
+
     try {
       const res = await orderService.createOrder({
         id: orderId,
         customerName: customerName.trim(),
         phone: phone.trim(),
         address: address.trim(),
-        note: note.trim(),
+        note: combinedNote,
         paymentMethod,
         subtotal: totalPrice,
         shippingFee,
@@ -153,10 +170,12 @@ export default function CartPage() {
 
     const itemsText = items
       .map(
-        (it, idx) =>
-          `${idx + 1}. ${it.product.name} (SL: ${it.quantity}) - ${formatPrice(
-            it.product.price * it.quantity
-          )}`
+        (it, idx) => {
+          const pricing = getProductPricing(it.product, promotion, isPromotionActive);
+          return `${idx + 1}. ${it.product.name} (SL: ${it.quantity}) - ${formatPrice(
+            pricing.effectivePrice * it.quantity
+          )}`;
+        }
       )
       .join("\n");
 
@@ -255,7 +274,8 @@ export default function CartPage() {
             <div className="lg:col-span-7 space-y-4">
               <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 overflow-hidden shadow-sm divide-y divide-zinc-100 dark:divide-zinc-800">
                 {items.map(({ product, quantity }) => {
-                  const itemSubtotal = product.price * quantity;
+                  const pricing = getProductPricing(product, promotion, isPromotionActive);
+                  const itemSubtotal = pricing.effectivePrice * quantity;
 
                   return (
                     <div
@@ -294,11 +314,11 @@ export default function CartPage() {
                           </Link>
                           <div className="mt-1 flex items-baseline gap-2">
                             <span className="font-bold text-xs text-indigo-600 dark:text-indigo-400">
-                              {formatPrice(product.price)}
+                              {formatPrice(pricing.effectivePrice)}
                             </span>
-                            {product.oldPrice && product.oldPrice > product.price && (
+                            {pricing.effectiveOldPrice && pricing.effectiveOldPrice > pricing.effectivePrice && (
                               <span className="text-[11px] text-zinc-400 line-through">
-                                {formatPrice(product.oldPrice)}
+                                {formatPrice(pricing.effectiveOldPrice)}
                               </span>
                             )}
                           </div>
@@ -336,7 +356,7 @@ export default function CartPage() {
                             {formatPrice(itemSubtotal)}
                           </span>
                           <span className="text-[10px] text-zinc-400">
-                            ({quantity} × {formatPrice(product.price)})
+                            ({quantity} × {formatPrice(pricing.effectivePrice)})
                           </span>
                         </div>
 
@@ -398,17 +418,28 @@ export default function CartPage() {
                 <div className="space-y-2.5 text-xs">
                   <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                     <span>Tạm tính ({totalItems} sản phẩm):</span>
-                    <span className="font-bold text-zinc-900 dark:text-white">
+                    <span className={`font-bold ${hasPromo ? "line-through text-zinc-400" : "text-zinc-900 dark:text-white"}`}>
                       {formatPrice(totalPrice)}
                     </span>
                   </div>
+
+                  {discountAmount > 0 && (
+                    <div className="flex justify-between text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/40 px-2.5 py-1.5 rounded-xl border border-rose-200/60 dark:border-rose-900/60">
+                      <span className="flex items-center gap-1">
+                        <span>🔥</span>
+                        <span>{promotion?.name || "Ưu đãi hot"} (-{promoPercent}%):</span>
+                      </span>
+                      <span>-{formatPrice(discountAmount)}</span>
+                    </div>
+                  )}
 
                   <div className="flex justify-between text-zinc-600 dark:text-zinc-400">
                     <span>Phí vận chuyển:</span>
                     <span>
                       {shippingFee === 0 ? (
-                        <span className="font-bold text-emerald-600 dark:text-emerald-400">
-                          Miễn phí
+                        <span className="font-bold text-emerald-600 dark:text-emerald-400 flex items-center gap-1">
+                          {isPromotionActive && promotion?.isFreeship && <span>🎉</span>}
+                          <span>Miễn phí</span>
                         </span>
                       ) : (
                         <span className="font-bold text-zinc-900 dark:text-white">
@@ -422,7 +453,7 @@ export default function CartPage() {
                     <span className="text-sm font-bold text-zinc-900 dark:text-white">
                       Tổng thanh toán:
                     </span>
-                    <span className="text-2xl font-black text-indigo-600 dark:text-indigo-400">
+                    <span className="text-2xl font-black text-rose-600 dark:text-rose-400">
                       {formatPrice(finalTotal)}
                     </span>
                   </div>

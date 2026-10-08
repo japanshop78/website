@@ -8,6 +8,7 @@ import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { Product } from "@/data/products";
 import { getAssetPath } from "@/utils/assetPath";
+import { getProductPricing } from "@/types/promotion";
 import SearchIcon from "@/components/icons/SearchIcon";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
@@ -21,7 +22,7 @@ function SearchContent() {
   const [submittedQuery, setSubmittedQuery] = useState(queryParam);
   const [sortBy, setSortBy] = useState<SortOption>("relevance");
 
-  const { products, categories, getCategoryIdByProductId } = useProductData();
+  const { products, categories, getCategoryIdByProductId, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
 
   const categoryMap = useMemo(() => {
@@ -47,16 +48,24 @@ function SearchContent() {
 
     switch (sortBy) {
       case "price_asc":
-        return [...matches].sort((a, b) => a.price - b.price);
+        return [...matches].sort(
+          (a, b) =>
+            getProductPricing(a, promotion, isPromotionActive).effectivePrice -
+            getProductPricing(b, promotion, isPromotionActive).effectivePrice
+        );
       case "price_desc":
-        return [...matches].sort((a, b) => b.price - a.price);
+        return [...matches].sort(
+          (a, b) =>
+            getProductPricing(b, promotion, isPromotionActive).effectivePrice -
+            getProductPricing(a, promotion, isPromotionActive).effectivePrice
+        );
       case "rating":
         return [...matches].sort((a, b) => (b.rating || 5) - (a.rating || 5));
       case "relevance":
       default:
         return matches;
     }
-  }, [submittedQuery, products, sortBy]);
+  }, [submittedQuery, products, sortBy, promotion, isPromotionActive]);
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-black py-8">
@@ -169,6 +178,11 @@ function SearchContent() {
               const imgUrl = product.images?.[0] || "/logo.jpg";
               const catId = getCategoryIdByProductId(product.id);
               const catName = catId ? categoryMap.get(catId) : null;
+              const {
+                effectivePrice,
+                effectiveOldPrice,
+                discountPercent,
+              } = getProductPricing(product, promotion, isPromotionActive);
 
               return (
                 <div
@@ -188,11 +202,15 @@ function SearchContent() {
                         className="object-contain p-2 transition-transform duration-300 group-hover:scale-105"
                         sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 25vw"
                       />
-                      {product.tag && (
-                        <span className="absolute top-2 left-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs">
+                      {discountPercent ? (
+                        <span className="absolute top-2 left-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs z-10">
+                          -{discountPercent}%
+                        </span>
+                      ) : product.tag ? (
+                        <span className="absolute top-2 left-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs z-10">
                           {product.tag}
                         </span>
-                      )}
+                      ) : null}
                     </Link>
 
                     {/* Metadata */}
@@ -215,11 +233,11 @@ function SearchContent() {
                   <div className="mt-4 pt-3 border-t border-zinc-100 dark:border-zinc-800/80 flex items-center justify-between">
                     <div>
                       <div className="text-sm sm:text-base font-extrabold text-indigo-600 dark:text-indigo-400">
-                        {formatPrice(product.price)}
+                        {formatPrice(effectivePrice)}
                       </div>
-                      {product.oldPrice && product.oldPrice > product.price && (
+                      {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
                         <div className="text-[10px] text-zinc-400 line-through">
-                          {formatPrice(product.oldPrice)}
+                          {formatPrice(effectiveOldPrice)}
                         </div>
                       )}
                     </div>

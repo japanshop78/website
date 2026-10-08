@@ -5,6 +5,8 @@ import { PRODUCTS as DEFAULT_PRODUCTS, Product } from "@/data/products";
 import { CATEGORIES as DEFAULT_CATEGORIES, Category } from "@/data/categories";
 import { CATEGORY_PRODUCTS as DEFAULT_CATEGORY_PRODUCTS, CategoryProductMapping } from "@/data/categoryProducts";
 import { FEATURED_PRODUCT_ORDER as DEFAULT_ORDER, ProductOrder } from "@/data/order";
+import DEFAULT_PROMOTION from "@/data/promotions.json";
+import { PromotionCampaign, DbPromotionRow, isCampaignActive } from "@/types/promotion";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 
@@ -169,6 +171,9 @@ interface ProductContextType {
   setBannerProducts: (banner: string, productIds: string[]) => Promise<void>;
   seedInitialDataToSupabase: () => Promise<{ success: boolean; message: string }>;
   refreshFromSupabase: () => Promise<void>;
+  promotion: PromotionCampaign;
+  updatePromotion: (data: Partial<PromotionCampaign>) => Promise<boolean>;
+  isPromotionActive: boolean;
 }
 
 const ProductDataContext = createContext<ProductContextType | undefined>(undefined);
@@ -178,6 +183,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   const [categories, setCategories] = useState<Category[]>(DEFAULT_CATEGORIES);
   const [categoryProducts, setCategoryProductsState] = useState<CategoryProductMapping[]>(DEFAULT_CATEGORY_PRODUCTS);
   const [orders, setOrders] = useState<ProductOrder[]>(DEFAULT_ORDER);
+  const [promotion, setPromotion] = useState<PromotionCampaign>(DEFAULT_PROMOTION as unknown as PromotionCampaign);
   const [isLoaded, setIsLoaded] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseConnectionStatus>("loading");
 
@@ -189,8 +195,8 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     }
 
     try {
-      // Fetch all 4 resources concurrently for high performance
-      const [catRes, catProdRes, prodRes, ordRes] = await Promise.all([
+      // Fetch all resources concurrently for high performance
+      const [catRes, catProdRes, prodRes, ordRes, promoRes] = await Promise.all([
         supabase
           .from("categories")
           .select("*")
@@ -213,6 +219,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
           }),
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("product_orders").select("product_id, order_num, banner").order("order_num", { ascending: true }),
+        supabase.from("promotions").select("*").eq("id", "active_campaign").maybeSingle(),
       ]);
 
       if (catRes.error || prodRes.error || catProdRes.error || ordRes.error) {
@@ -243,6 +250,22 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       const dbProducts = (prodRes.data as unknown as DbProductRow[]) || [];
       const dbCatProducts = (catProdRes.data as unknown as DbCategoryProductRow[]) || [];
       const dbOrders = (ordRes.data as unknown as DbProductOrderRow[]) || [];
+
+      if (promoRes?.data) {
+        const p = promoRes.data as unknown as DbPromotionRow;
+        setPromotion({
+          id: p.id || "active_campaign",
+          name: p.name || DEFAULT_PROMOTION.name,
+          isActive: typeof p.is_active === "boolean" ? p.is_active : DEFAULT_PROMOTION.is_active,
+          discountPercent: typeof p.discount_percent === "number" ? p.discount_percent : DEFAULT_PROMOTION.discount_percent,
+          isFreeship: typeof p.is_freeship === "boolean" ? p.is_freeship : DEFAULT_PROMOTION.is_freeship,
+          startDate: p.start_date || DEFAULT_PROMOTION.start_date,
+          endDate: p.end_date || DEFAULT_PROMOTION.end_date,
+          bannerTitle: p.banner_title || DEFAULT_PROMOTION.banner_title,
+          bannerSubtitle: p.banner_subtitle || DEFAULT_PROMOTION.banner_subtitle,
+          updatedAt: p.updated_at,
+        });
+      }
 
       // Category order lookup from product_orders (banner = 'category')
       const categoryOrderMap = new Map<string, number>();
@@ -395,6 +418,24 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       const { error: ordErr } = await supabase.from("product_orders").insert(allOrdersToInsert);
       if (ordErr) {
         await supabase.from("product_orders").upsert(allOrdersToInsert, { onConflict: "product_id,banner" });
+      }
+
+      // 5. Promotions
+      try {
+        await supabase.from("promotions").upsert({
+          id: DEFAULT_PROMOTION.id,
+          name: DEFAULT_PROMOTION.name,
+          is_active: DEFAULT_PROMOTION.is_active,
+          discount_percent: DEFAULT_PROMOTION.discount_percent,
+          is_freeship: DEFAULT_PROMOTION.is_freeship,
+          start_date: DEFAULT_PROMOTION.start_date,
+          end_date: DEFAULT_PROMOTION.end_date,
+          banner_title: DEFAULT_PROMOTION.banner_title,
+          banner_subtitle: DEFAULT_PROMOTION.banner_subtitle,
+          updated_at: new Date().toISOString(),
+        }, { onConflict: "id" });
+      } catch {
+        // Ignore if table not created yet
       }
 
       await fetchDataFromSupabase();
@@ -1094,6 +1135,42 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     [getProductsByBanner]
   );
 
+  const isPromotionActive = isCampaignActive(promotion);
+
+  const updatePromotion = async (data: Partial<PromotionCampaign>): Promise<boolean> => {
+    const updated: PromotionCampaign = { ...promotion, ...data };
+    setPromotion(updated);
+
+    if (!supabase || !isSupabaseConfigured()) {
+      return true;
+    }
+
+    try {
+      const dbRow: Record<string, unknown> = {
+        id: "active_campaign",
+        name: updated.name,
+        is_active: updated.isActive,
+        discount_percent: Number(updated.discountPercent) || 0,
+        is_freeship: Boolean(updated.isFreeship),
+        start_date: updated.startDate,
+        end_date: updated.endDate,
+        banner_title: updated.bannerTitle,
+        banner_subtitle: updated.bannerSubtitle,
+        updated_at: new Date().toISOString(),
+      };
+
+      const { error } = await supabase.from("promotions").upsert(dbRow, { onConflict: "id" });
+      if (error) {
+        console.error("Failed to update promotions in Supabase:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to save promotion in Supabase:", err);
+      return false;
+    }
+  };
+
   return (
     <ProductDataContext.Provider
       value={{
@@ -1101,6 +1178,9 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         categories,
         categoryProducts,
         orders,
+        promotion,
+        updatePromotion,
+        isPromotionActive,
         isLoaded,
         supabaseStatus,
         addProduct,
