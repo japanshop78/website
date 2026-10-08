@@ -189,18 +189,18 @@ export default function CategoryDetailPage({
         <div className="relative w-full px-4 py-12 sm:px-6 lg:px-8 sm:py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-2xl">
-              <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
+              {/* <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
                 {renderCategoryIcon(category.iconName, "h-4 w-4")}
                 <span>{category.name}</span>
                 <span className="opacity-60">•</span>
                 <span className="opacity-90">{activeStats.totalProducts} sản phẩm hiện có</span>
-              </div>
+              </div> */}
               <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
                 {category.name}
               </h1>
-              <p className="mt-3 text-base text-zinc-100 sm:text-lg max-w-xl leading-relaxed">
+              {/* <p className="mt-3 text-base text-zinc-100 sm:text-lg max-w-xl leading-relaxed">
                 {category.description}
-              </p>
+              </p> */}
 
               {/* Subcategories tags */}
               {category.subcategories && category.subcategories.length > 0 && (
@@ -399,9 +399,9 @@ export default function CategoryDetailPage({
 
         {/* Product Count indicator */}
         <div className="mt-6 mb-4 flex items-center justify-between text-sm text-zinc-500 dark:text-zinc-400">
-          <p>
+          {/* <p>
             Hiển thị <span className="font-semibold text-zinc-900 dark:text-white">{filteredProducts.length}</span> sản phẩm
-          </p>
+          </p> */}
         </div>
 
         {/* Empty State */}

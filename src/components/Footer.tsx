@@ -46,7 +46,7 @@ export default function Footer() {
               <li className="flex items-start gap-2.5">
                 <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0" />
                 <span>
-                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Đơn trên 1.000.000đ:</strong> Miễn phí vận chuyển (Freeship)
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Freeship:</strong> Đơn từ 1.000.000đ
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
