@@ -56,7 +56,8 @@ export default function CategoryDetailPage({
   const { getProductsByCategoryId, isLoaded, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
   const activeProducts = useMemo(() => {
-    return isLoaded ? getProductsByCategoryId(category.id) : products;
+    const list = isLoaded ? getProductsByCategoryId(category.id) : products;
+    return list.filter((p) => p.visible !== false);
   }, [isLoaded, getProductsByCategoryId, category.id, products]);
 
   const activeStats = useMemo(() => {

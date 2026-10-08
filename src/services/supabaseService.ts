@@ -50,6 +50,8 @@ export interface DbProductRow {
   tag: string | null;
   stock: number;
   ingredients: string | null;
+  visible?: boolean | null;
+  is_visible?: boolean | null;
 }
 
 export interface DbCategoryRow {
@@ -93,6 +95,7 @@ export function mapDbProductToProduct(row: DbProductRow): Product {
     reviews: Number(row.reviews) || 0,
     tag: row.tag || undefined,
     stock: Number(row.stock) || 0,
+    visible: row.visible !== false && row.is_visible !== false,
   };
 }
 
@@ -112,6 +115,7 @@ export function mapProductToDbRow(p: Product): Record<string, unknown> {
     reviews: p.reviews ?? 0,
     tag: p.tag ?? null,
     stock: p.stock ?? 0,
+    visible: p.visible !== false,
   };
 }
 

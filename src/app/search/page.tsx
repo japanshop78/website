@@ -38,6 +38,7 @@ function SearchContent() {
     if (!submittedQuery) return [];
     const q = submittedQuery.toLowerCase();
     const matches = products.filter((p) => {
+      if (p.visible === false) return false;
       return (
         p.name.toLowerCase().includes(q) ||
         (p.description && p.description.toLowerCase().includes(q)) ||

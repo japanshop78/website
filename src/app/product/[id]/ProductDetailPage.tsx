@@ -44,9 +44,9 @@ export default function ProductDetailPage({ product, related }: Props) {
   const currentRelated =
     (isLoaded
       ? getProductsByCategoryId(currentProductCategoryId)
-          .filter((p) => p.id !== currentProduct.id)
+          .filter((p) => p.id !== currentProduct.id && p.visible !== false)
           .slice(0, 4)
-      : null) || related;
+      : null) || related.filter((p) => p.visible !== false);
 
   const [quantity, setQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<"desc" | "ingredients">("desc");
@@ -227,6 +227,15 @@ export default function ProductDetailPage({ product, related }: Props) {
           {/* Product Info */}
           <div className="lg:col-span-7 flex flex-col gap-6">
             {/* Category & Name */}
+
+            {currentProduct.visible === false && (
+              <div className="rounded-2xl border border-amber-300 dark:border-amber-900 bg-amber-50 dark:bg-amber-950/40 p-3.5 flex items-center gap-3">
+                <span className="text-xl">⚠️</span>
+                <div className="text-xs text-amber-800 dark:text-amber-200">
+                  <strong>Sản phẩm này hiện đang tạm ẩn</strong> trên trang chủ và danh mục. Khách hàng thông thường sẽ không tìm thấy sản phẩm này.
+                </div>
+              </div>
+            )}
 
             <div>
               <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">

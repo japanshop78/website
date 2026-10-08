@@ -25,6 +25,8 @@ interface DbProductRow {
   tag: string | null;
   stock: number;
   ingredients: string | null;
+  visible?: boolean | null;
+  is_visible?: boolean | null;
 }
 
 interface DbCategoryRow {
@@ -69,6 +71,7 @@ function mapDbProduct(row: DbProductRow): Product {
     reviews: Number(row.reviews) || 0,
     tag: row.tag || undefined,
     stock: Number(row.stock) || 0,
+    visible: row.visible !== false && row.is_visible !== false,
   };
 }
 
@@ -90,6 +93,7 @@ function mapProductToDb(p: Product) {
     reviews: p.reviews ?? 0,
     tag: p.tag ?? null,
     stock: p.stock ?? 0,
+    visible: p.visible !== false,
   };
 }
 
@@ -822,7 +826,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       const result: Product[] = [];
       for (const cp of matchedMappings) {
         const prod = productMap.get(String(cp.productId).trim());
-        if (prod) {
+        if (prod && prod.visible !== false) {
           result.push(prod);
         }
       }
@@ -1090,7 +1094,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       );
 
       const bannerProducts = products
-        .filter((p) => orderMap.has(String(p.id).trim()))
+        .filter((p) => p.visible !== false && orderMap.has(String(p.id).trim()))
         .sort((a, b) => {
           const orderA =
             orderMap.get(String(a.id).trim()) ?? Number.MAX_SAFE_INTEGER;
@@ -1106,13 +1110,14 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       // Fallbacks
       if (target === "featured") {
         return [...products]
+          .filter((p) => p.visible !== false)
           .sort((a, b) => (b.rating || 5) - (a.rating || 5))
           .slice(0, limit || 10);
       }
 
       if (target === "discount") {
-        return [...products]
-          .filter((p) => p.oldPrice && p.oldPrice > p.price)
+        return products
+          .filter((p) => p.visible !== false && p.oldPrice && p.oldPrice > p.price)
           .slice(0, limit || 10);
       }
 

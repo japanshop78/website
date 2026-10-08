@@ -72,6 +72,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     const q = debouncedQuery.toLowerCase();
     return products
       .filter((p) => {
+        if (p.visible === false) return false;
         return (
           p.name.toLowerCase().includes(q) ||
           (p.description && p.description.toLowerCase().includes(q)) ||
