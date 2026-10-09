@@ -280,7 +280,7 @@ export default function FeaturedProductsSection() {
                                 {categoryName}
                               </span>
                             )}
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2">
+                            <h3 className="text-sm font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2">
                               <Link href={`/product/${product.id}`}>
                                 <span aria-hidden="true" className="absolute inset-0" />
                                 {product.name}

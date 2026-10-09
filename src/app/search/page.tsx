@@ -219,7 +219,7 @@ function SearchContent() {
                       )}
                       <Link
                         href={`/product/${product.id}`}
-                        className="line-clamp-2 text-xs sm:text-sm font-semibold text-zinc-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-400 transition-colors"
+                        className="line-clamp-2 text-xs sm:text-sm font-semibold uppercase text-zinc-900 group-hover:text-indigo-600 dark:text-zinc-100 dark:group-hover:text-indigo-400 transition-colors"
                       >
                         {product.name}
                       </Link>

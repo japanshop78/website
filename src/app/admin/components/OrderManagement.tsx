@@ -355,7 +355,7 @@ export default function OrderManagement() {
                               </div>
                             ) : null}
                             <div className="min-w-0">
-                              <span className="font-bold text-zinc-900 dark:text-white line-clamp-1">
+                              <span className="font-bold uppercase text-zinc-900 dark:text-white line-clamp-1">
                                 {item.name}
                               </span>
                               <span className="text-zinc-400 text-[11px]">

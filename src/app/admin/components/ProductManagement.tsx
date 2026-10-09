@@ -407,7 +407,7 @@ export default function ProductManagement() {
                               )}
 
                             </div>
-                            <h3 className="font-bold text-zinc-900 dark:text-white line-clamp-1 mt-0.5">
+                            <h3 className="font-bold uppercase text-zinc-900 dark:text-white line-clamp-1 mt-0.5">
                               {p.name}
                             </h3>
                             <p className="text-xs text-zinc-500 line-clamp-1 mt-0.5">

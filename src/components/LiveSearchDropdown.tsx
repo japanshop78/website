@@ -223,7 +223,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                             )}
 
                           </div>
-                          <p className="text-xs font-semibold text-zinc-900 dark:text-white truncate mt-0.5">
+                          <p className="text-xs font-semibold uppercase text-zinc-900 dark:text-white truncate mt-0.5">
                             {product.name}
                           </p>
                           <div className="flex items-baseline gap-2 mt-0.5">

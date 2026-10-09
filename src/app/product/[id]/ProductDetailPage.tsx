@@ -467,7 +467,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
+                    <p className="text-sm font-semibold uppercase text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                       {p.name}
                     </p>
                     <div className="mt-1 flex items-center gap-2">

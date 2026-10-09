@@ -304,7 +304,7 @@ export default function CartPage() {
 
                           <Link
                             href={`/product/${product.id}`}
-                            className="font-bold text-sm text-zinc-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-snug"
+                            className="font-bold text-sm uppercase text-zinc-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-snug"
                           >
                             {product.name}
                           </Link>

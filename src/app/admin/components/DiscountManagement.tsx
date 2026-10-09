@@ -827,7 +827,7 @@ export default function DiscountManagement() {
 
                       {/* Info */}
                       <div className="mb-2">
-                        <h4 className="font-bold text-xs text-zinc-900 dark:text-white line-clamp-2 leading-snug">
+                        <h4 className="font-bold text-xs uppercase text-zinc-900 dark:text-white line-clamp-2 leading-snug">
                           {p.name}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -975,7 +975,7 @@ export default function DiscountManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
                               {p.name}
                             </p>
 
@@ -1079,7 +1079,7 @@ export default function DiscountManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
                               {p.name}
                             </p>
 
@@ -1324,7 +1324,7 @@ export default function DiscountManagement() {
                   </div>
 
                   <div>
-                    <h4 className="text-xs font-bold text-zinc-900 dark:text-white line-clamp-2">
+                    <h4 className="text-xs font-bold uppercase text-zinc-900 dark:text-white line-clamp-2">
                       {product.name}
                     </h4>
                     <div className="mt-1 flex items-center gap-1.5 flex-wrap">

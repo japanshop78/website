@@ -513,7 +513,7 @@ export default function FeaturedManagement() {
 
                       {/* Info */}
                       <div className="mb-2">
-                        <h4 className="font-bold text-xs text-zinc-900 dark:text-white line-clamp-2 leading-snug">
+                        <h4 className="font-bold text-xs uppercase text-zinc-900 dark:text-white line-clamp-2 leading-snug">
                           {p.name}
                         </h4>
                         <div className="flex items-center gap-1.5 mt-1 flex-wrap">
@@ -654,7 +654,7 @@ export default function FeaturedManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
                               {p.name}
                             </p>
 
@@ -757,7 +757,7 @@ export default function FeaturedManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
                               {p.name}
                             </p>
 
@@ -876,7 +876,7 @@ export default function FeaturedManagement() {
                               {categoryName}
                             </span>
                           )}
-                          <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2">
+                          <h3 className="text-sm font-semibold uppercase text-zinc-900 dark:text-white line-clamp-2">
                             {product.name}
                           </h3>
                           <div className="mt-1.5 flex items-center gap-1 text-xs text-amber-500">

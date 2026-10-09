@@ -411,7 +411,7 @@ export default function RakutenManagement() {
 
                   <div className="min-w-0 flex-1">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <h4 className="text-base font-bold text-zinc-900 dark:text-white truncate">
+                      <h4 className="text-base font-bold uppercase text-zinc-900 dark:text-white truncate">
                         {item.name}
                       </h4>
                       {item.isSale && (

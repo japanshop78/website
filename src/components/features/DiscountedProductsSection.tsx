@@ -435,7 +435,7 @@ export default function DiscountedProductsSection() {
                                 {categoryName}
                               </span>
                             )}
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                            <h3 className="text-sm font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                               <Link href={`/product/${product.id}`}>
                                 <span aria-hidden="true" className="absolute inset-0" />
                                 {product.name}
