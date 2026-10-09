@@ -238,10 +238,10 @@ export default function ProductDetailPage({ product, related }: Props) {
             )}
 
             <div>
-              <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+              {/* <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                 {categoryName}
-              </span>
-              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+              </span> */}
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 uppercase dark:text-white sm:text-4xl">
                 {currentProduct.name}
               </h1>
             </div>
@@ -431,11 +431,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                         Xem chi tiết
                       </span>
                     </div>
-                    {p.tag && (
-                      <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-20">
-                        {p.tag}
-                      </span>
-                    )}
+
                     {relatedDiscount && (
                       <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-20">
                         -{relatedDiscount}%
