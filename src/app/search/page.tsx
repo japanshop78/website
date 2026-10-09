@@ -207,10 +207,6 @@ function SearchContent() {
                         <span className="absolute top-2 left-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs z-10">
                           -{discountPercent}%
                         </span>
-                      ) : product.tag ? (
-                        <span className="absolute top-2 left-2 rounded-full bg-rose-600 px-2 py-0.5 text-[10px] font-bold text-white shadow-xs z-10">
-                          {product.tag}
-                        </span>
                       ) : null}
                     </Link>
 

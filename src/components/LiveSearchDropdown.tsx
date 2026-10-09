@@ -221,11 +221,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                                 {catName}
                               </span>
                             )}
-                            {product.tag && (
-                              <span className="rounded-md bg-rose-100 dark:bg-rose-950/60 px-1.5 py-0.5 text-[10px] font-semibold text-rose-600 dark:text-rose-400">
-                                {product.tag}
-                              </span>
-                            )}
+
                           </div>
                           <p className="text-xs font-semibold text-zinc-900 dark:text-white truncate mt-0.5">
                             {product.name}

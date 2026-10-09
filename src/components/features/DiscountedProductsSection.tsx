@@ -417,11 +417,7 @@ export default function DiscountedProductsSection() {
                             </div>
                           )}
 
-                          {product.tag && (
-                            <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2 py-0.5 text-xs font-semibold shadow-xs z-10">
-                              {product.tag}
-                            </span>
-                          )}
+
 
                           {/* Glowing Discount Badge */}
                           {discount && (

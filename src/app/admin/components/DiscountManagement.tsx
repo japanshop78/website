@@ -30,17 +30,6 @@ export const calcDiscountAmount = (price: number, oldPrice?: number) => {
   return 0;
 };
 
-const DISCOUNT_PRESET_TAGS = [
-  "Ưu đãi hot",
-  "Giảm giá sốc",
-  "Flash Sale",
-  "Sale sập sàn",
-  "Bán chạy",
-  "Hot",
-  "Khuyên dùng",
-  "Mới",
-];
-
 interface DragPayload {
   source: "catalog" | "slot";
   product: Product;
@@ -359,15 +348,6 @@ export default function DiscountManagement() {
     setIsSaved(false);
   };
 
-  const handleTagChange = (slotIndex: number, newTag: string) => {
-    const nextSlots = [...localSlots];
-    const target = nextSlots[slotIndex];
-    if (target) {
-      nextSlots[slotIndex] = { ...target, tag: newTag };
-      setLocalSlots(nextSlots);
-      setIsSaved(false);
-    }
-  };
 
   // --- Save Changes to Database / Context ---
   const handleSaveChanges = () => {
@@ -604,7 +584,7 @@ export default function DiscountManagement() {
                 Đã tự động chọn 10 sản phẩm có mức % giảm giá cao nhất!
               </span>
               <span className="text-xs text-rose-700 dark:text-rose-300">
-                Bạn vẫn có thể tự do kéo thả đổi vị trí, thay đổi nhãn hoặc gỡ bớt sản phẩm, sau đó nhấn &quot;💾 Lưu thay đổi&quot;.
+                Bạn vẫn có thể tự do kéo thả đổi vị trí hoặc gỡ bớt sản phẩm, sau đó nhấn &quot;💾 Lưu thay đổi&quot;.
               </span>
             </div>
           </div>
@@ -999,21 +979,7 @@ export default function DiscountManagement() {
                               {p.name}
                             </p>
 
-                            <div className="w-full space-y-1">
-                              <select
-                                value={p.tag || "Ưu đãi hot"}
-                                onChange={(e) =>
-                                  handleTagChange(slotIndex, e.target.value)
-                                }
-                                className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[9px] font-bold py-0.5 px-1 text-zinc-800 dark:text-zinc-200 outline-none"
-                              >
-                                {DISCOUNT_PRESET_TAGS.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
-                                  </option>
-                                ))}
-                              </select>
-
+                            <div className="w-full">
                               <div className="flex items-center justify-center gap-1 flex-wrap">
                                 <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 block truncate">
                                   {formatPrice(p.price)}
@@ -1117,21 +1083,7 @@ export default function DiscountManagement() {
                               {p.name}
                             </p>
 
-                            <div className="w-full space-y-1">
-                              <select
-                                value={p.tag || "Ưu đãi hot"}
-                                onChange={(e) =>
-                                  handleTagChange(slotIndex, e.target.value)
-                                }
-                                className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[9px] font-bold py-0.5 px-1 text-zinc-800 dark:text-zinc-200 outline-none"
-                              >
-                                {DISCOUNT_PRESET_TAGS.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
-                                  </option>
-                                ))}
-                              </select>
-
+                            <div className="w-full">
                               <div className="flex items-center justify-center gap-1 flex-wrap">
                                 <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 block truncate">
                                   {formatPrice(p.price)}
@@ -1351,7 +1303,7 @@ export default function DiscountManagement() {
                 >
                   <div className="flex items-center justify-between mb-2">
                     <span className="rounded-full bg-rose-500 text-white px-2 py-0.5 text-[10px] font-black">
-                      #{idx + 1} {product.tag || "Ưu đãi hot"}
+                      #{idx + 1}
                     </span>
                     {discPercent > 0 && (
                       <span className="rounded bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 px-1.5 py-0.5 text-[10px] font-black">

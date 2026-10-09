@@ -22,15 +22,6 @@ const calcDiscount = (price: number, oldPrice?: number) => {
   return 0;
 };
 
-const PRESET_TAGS = [
-  "Bán chạy nhất",
-  "Bán chạy",
-  "Hot",
-  "Mới",
-  "Khuyên dùng",
-  "Ưu đãi hot",
-];
-
 interface DragPayload {
   source: "catalog" | "slot";
   product: Product;
@@ -248,15 +239,6 @@ export default function FeaturedManagement() {
     setIsSaved(false);
   };
 
-  const handleTagChange = (slotIndex: number, newTag: string) => {
-    const nextSlots = [...localSlots];
-    const target = nextSlots[slotIndex];
-    if (target) {
-      nextSlots[slotIndex] = { ...target, tag: newTag };
-      setLocalSlots(nextSlots);
-      setIsSaved(false);
-    }
-  };
 
   // --- Save Changes to Database / Context ---
   const handleSaveChanges = () => {
@@ -676,21 +658,7 @@ export default function FeaturedManagement() {
                               {p.name}
                             </p>
 
-                            <div className="w-full space-y-1">
-                              <select
-                                value={p.tag || "Bán chạy"}
-                                onChange={(e) =>
-                                  handleTagChange(slotIndex, e.target.value)
-                                }
-                                className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[9px] font-bold py-0.5 px-1 text-zinc-800 dark:text-zinc-200 outline-none"
-                              >
-                                {PRESET_TAGS.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
-                                  </option>
-                                ))}
-                              </select>
-
+                            <div className="w-full">
                               <div className="flex items-center justify-center gap-1 flex-wrap">
                                 <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 block truncate">
                                   {formatPrice(p.price)}
@@ -793,21 +761,7 @@ export default function FeaturedManagement() {
                               {p.name}
                             </p>
 
-                            <div className="w-full space-y-1">
-                              <select
-                                value={p.tag || "Bán chạy"}
-                                onChange={(e) =>
-                                  handleTagChange(slotIndex, e.target.value)
-                                }
-                                className="w-full rounded-md border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-[9px] font-bold py-0.5 px-1 text-zinc-800 dark:text-zinc-200 outline-none"
-                              >
-                                {PRESET_TAGS.map((t) => (
-                                  <option key={t} value={t}>
-                                    {t}
-                                  </option>
-                                ))}
-                              </select>
-
+                            <div className="w-full">
                               <div className="flex items-center justify-center gap-1 flex-wrap">
                                  <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 block truncate">
                                    {formatPrice(p.price)}
@@ -907,11 +861,7 @@ export default function FeaturedManagement() {
                             </span>
                           </div>
                         )}
-                        {product.tag && (
-                          <span className="absolute top-3 right-3 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2.5 py-1 text-xs font-semibold shadow-xs z-10">
-                            {product.tag}
-                          </span>
-                        )}
+
                         {product.oldPrice && product.oldPrice > product.price && (
                           <span className="absolute top-3 left-3 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
                             -{calcDiscount(product.price, product.oldPrice)}%

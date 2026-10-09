@@ -301,11 +301,7 @@ export default function CartPage() {
                         </Link>
 
                         <div className="flex-1 min-w-0 pr-2">
-                          {product.tag && (
-                            <span className="inline-block rounded-md bg-amber-100 dark:bg-amber-950/80 text-amber-700 dark:text-amber-300 text-[10px] font-black px-1.5 py-0.5 mb-1">
-                              {product.tag}
-                            </span>
-                          )}
+
                           <Link
                             href={`/product/${product.id}`}
                             className="font-bold text-sm text-zinc-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors leading-snug"

@@ -613,11 +613,6 @@ export default function CategoryProductManagement() {
                               <span className="font-mono text-xs font-bold text-zinc-400">
                                 #{p.id}
                               </span>
-                              {p.tag && (
-                                <span className="rounded-md bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-1.5 py-0.5 text-[10px] font-bold">
-                                  {p.tag}
-                                </span>
-                              )}
                             </div>
                             <h4 className="font-bold text-sm text-zinc-900 dark:text-white truncate mt-0.5">
                               {p.name}

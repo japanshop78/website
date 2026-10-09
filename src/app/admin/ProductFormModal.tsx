@@ -232,21 +232,8 @@ export default function ProductFormModal({
                 </div>
               </div>
 
-              {/* Tag & Đánh giá (Rating + Reviews) */}
-              <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                <div>
-                  <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1">
-                    Nhãn Tag
-                  </label>
-                  <input
-                    type="text"
-                    value={tag}
-                    onChange={(e) => setTag(e.target.value)}
-                    placeholder="VD: Bán chạy"
-                    className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-2.5 py-2 text-xs text-zinc-900 dark:text-white outline-none focus:border-indigo-500 font-medium"
-                  />
-                </div>
-
+              {/* Đánh giá (Rating + Reviews) */}
+              <div className="grid grid-cols-2 gap-2 sm:gap-3">
                 <div>
                   <label className="block text-[11px] font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1">
                     Đánh giá (★)
