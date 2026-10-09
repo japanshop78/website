@@ -1,36 +1,11 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Product } from "@/data/products";
 import { Category } from "@/data/categories";
 import { CategoryProductMapping } from "@/data/categoryProducts";
 import { ProductOrder } from "@/data/order";
 
-// Supabase Connection Configuration
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
-
-/**
- * Check whether Supabase environment variables are properly defined
- */
-export const isSupabaseConfigured = (): boolean => {
-  return Boolean(
-    SUPABASE_URL &&
-    SUPABASE_ANON_KEY &&
-    SUPABASE_URL.startsWith("https://") &&
-    SUPABASE_ANON_KEY.length > 20
-  );
-};
-
-/**
- * Supabase client instance
- */
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null;
+export { supabase, isSupabaseConfigured };
 
 // ============================================================================
 // DATABASE TYPES & MAPPING HELPERS

@@ -12,14 +12,22 @@ export const isSupabaseConfigured = (): boolean => {
   );
 };
 
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(supabaseUrl, supabaseAnonKey, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null;
+// Global singleton pattern to prevent multiple GoTrueClient instances during HMR / re-renders
+const globalForSupabase = globalThis as unknown as {
+  supabaseClient?: SupabaseClient | null;
+};
 
-export { supabaseService } from "@/services/supabaseService";
+export const supabase: SupabaseClient | null =
+  globalForSupabase.supabaseClient ??
+  (isSupabaseConfigured()
+    ? createClient(supabaseUrl, supabaseAnonKey, {
+        auth: {
+          persistSession: true,
+          autoRefreshToken: true,
+        },
+      })
+    : null);
 
+if (process.env.NODE_ENV !== "production") {
+  globalForSupabase.supabaseClient = supabase;
+}
