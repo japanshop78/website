@@ -74,17 +74,23 @@ export const productService = {
       const normalizeId = (val: string) => val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
       const targetNum = normalizeId(categoryId);
 
-      const matchedProductIds = new Set(
-        allMappings
-          .filter(
-            (cp) =>
-              cp.categoryId.toLowerCase() === targetId ||
-              normalizeId(cp.categoryId) === targetNum
-          )
-          .map((cp) => cp.productId)
-      );
+      const matchedMappings = allMappings
+        .filter(
+          (cp) =>
+            cp.categoryId.toLowerCase() === targetId ||
+            normalizeId(cp.categoryId) === targetNum
+        )
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
-      return allProducts.filter((product) => matchedProductIds.has(product.id));
+      const productMap = new Map(allProducts.map((p) => [String(p.id).trim(), p]));
+      const result: Product[] = [];
+      for (const cp of matchedMappings) {
+        const prod = productMap.get(String(cp.productId).trim());
+        if (prod && prod.visible !== false) {
+          result.push(prod);
+        }
+      }
+      return result;
     } catch (err) {
       console.error(`[productService] Lỗi getProductsByCategoryId(${categoryId}):`, err);
       return [];

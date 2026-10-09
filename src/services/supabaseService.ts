@@ -444,7 +444,9 @@ export const supabaseService = {
     return (data || []).map((r, idx) => ({
       categoryId: r.category_id,
       productId: r.product_id,
-      order: typeof r.order_num === "number" ? r.order_num : (typeof r.id === "number" ? r.id : idx + 1),
+      order: typeof r.order_num === "number" && r.order_num > 0
+        ? r.order_num
+        : (typeof r.id === "number" && r.id > 0 ? r.id : idx + 1),
     }));
   },
 

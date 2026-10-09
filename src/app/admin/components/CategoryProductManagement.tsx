@@ -1,13 +1,15 @@
 "use client";
 
-import React, { useState, useMemo } from "react";
+import React, { useState, useMemo, useEffect } from "react";
 import Image from "next/image";
 import Link from "next/link";
 import { useProductData } from "@/context/ProductDataContext";
+import { Product } from "@/data/products";
 import { getAssetPath } from "@/utils/assetPath";
 import SearchIcon from "@/components/icons/SearchIcon";
 import PlusIcon from "@/components/icons/PlusIcon";
 import CloseIcon from "@/components/icons/CloseIcon";
+import CheckIcon from "@/components/icons/CheckIcon";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -19,6 +21,8 @@ export default function CategoryProductManagement() {
     assignProductToCategory,
     removeProductFromCategory,
     moveCategoryProductOrder,
+    updateCategoryProductOrder,
+    saveCategoryProducts,
   } = useProductData();
 
   const [selectedCategoryId, setSelectedCategoryId] = useState<string>(
@@ -29,6 +33,11 @@ export default function CategoryProductManagement() {
   const [pickerSearch, setPickerSearch] = useState("");
   const [currentPage, setCurrentPage] = useState(1);
   const [pageSize, setPageSize] = useState(10);
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveNotification, setSaveNotification] = useState<{
+    type: "success" | "error";
+    message: string;
+  } | null>(null);
 
   // Map category to product count
   const categoryCountMap = useMemo(() => {
@@ -45,19 +54,37 @@ export default function CategoryProductManagement() {
     return categories.find((c) => c.id === selectedCategoryId) || categories[0];
   }, [categories, selectedCategoryId]);
 
-  // Products belonging to the selected category (sorted by category order)
-  const assignedProducts = useMemo(() => {
+  // 1. Server products from Supabase/Context
+  const serverProducts = useMemo(() => {
     if (!activeCategory) return [];
     const catMappings = categoryProducts
       .filter((cp) => cp.categoryId.toLowerCase() === activeCategory.id.toLowerCase())
       .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
+    const list: Product[] = [];
+    catMappings.forEach((cp) => {
+      const p = products.find((prod) => String(prod.id).trim() === String(cp.productId).trim());
+      if (p) list.push(p);
+    });
+    return list;
+  }, [products, categoryProducts, activeCategory]);
+
+  // 2. Local state for ordering products purely in UI
+  const [localProducts, setLocalProducts] = useState<Product[]>([]);
+  const [isDirty, setIsDirty] = useState(false);
+
+  // Sync with server when active category changes or server data loads
+  useEffect(() => {
+    setLocalProducts(serverProducts);
+    setIsDirty(false);
+  }, [activeCategory?.id, serverProducts]);
+
+  // Filter localProducts by search query
+  const assignedProducts = useMemo(() => {
     const q = searchQuery.toLowerCase().trim();
     const list: (typeof products[0] & { categoryOrder: number })[] = [];
 
-    catMappings.forEach((cp, idx) => {
-      const p = products.find((prod) => String(prod.id).trim() === String(cp.productId).trim());
-      if (!p) return;
+    localProducts.forEach((p, idx) => {
       if (
         q &&
         !(
@@ -70,12 +97,12 @@ export default function CategoryProductManagement() {
       }
       list.push({
         ...p,
-        categoryOrder: cp.order ?? idx + 1,
+        categoryOrder: idx + 1,
       });
     });
 
     return list;
-  }, [products, categoryProducts, activeCategory, searchQuery]);
+  }, [localProducts, searchQuery]);
 
   // Pagination for assigned products
   const totalAssigned = assignedProducts.length;
@@ -106,16 +133,10 @@ export default function CategoryProductManagement() {
   // Products not in the selected category (available to add)
   const unassignedProductsForActiveCategory = useMemo(() => {
     if (!activeCategory) return [];
-    const matchedIds = new Set(
-      categoryProducts
-        .filter((cp) => cp.categoryId.toLowerCase() === activeCategory.id.toLowerCase())
-        .map((cp) => cp.productId)
-    );
-
+    const localAssignedSet = new Set(localProducts.map((p) => String(p.id).trim()));
     const q = pickerSearch.toLowerCase().trim();
     return products.filter((p) => {
-      const isAlreadyIn = matchedIds.has(p.id);
-      if (isAlreadyIn) return false;
+      if (localAssignedSet.has(String(p.id).trim())) return false;
       if (!q) return true;
       return (
         p.name.toLowerCase().includes(q) ||
@@ -123,7 +144,7 @@ export default function CategoryProductManagement() {
         (p.tag && p.tag.toLowerCase().includes(q))
       );
     });
-  }, [products, categoryProducts, activeCategory, pickerSearch]);
+  }, [products, localProducts, activeCategory, pickerSearch]);
 
   // Unassigned products overall (not in any category)
   const orphanProducts = useMemo(() => {
@@ -131,22 +152,97 @@ export default function CategoryProductManagement() {
     return products.filter((p) => !allAssignedIds.has(p.id));
   }, [products, categoryProducts]);
 
+  // --- UI ONLY Ordering Handlers (chỉ thay đổi giao diện, chưa lưu Supabase) ---
+  const handleMoveOrder = (productId: string, direction: "up" | "down") => {
+    const idx = localProducts.findIndex((p) => String(p.id).trim() === String(productId).trim());
+    if (idx === -1) return;
+    if (direction === "up" && idx === 0) return;
+    if (direction === "down" && idx === localProducts.length - 1) return;
+
+    const targetIdx = direction === "up" ? idx - 1 : idx + 1;
+    const next = [...localProducts];
+    const temp = next[idx];
+    next[idx] = next[targetIdx];
+    next[targetIdx] = temp;
+
+    setLocalProducts(next);
+    setIsDirty(true);
+  };
+
+  const handleChangeOrderNumber = (productId: string, newOrder: number) => {
+    const idx = localProducts.findIndex((p) => String(p.id).trim() === String(productId).trim());
+    if (idx === -1) return;
+
+    const targetIdx = Math.max(0, Math.min(localProducts.length - 1, newOrder - 1));
+    if (idx === targetIdx) return;
+
+    const next = [...localProducts];
+    const [moved] = next.splice(idx, 1);
+    next.splice(targetIdx, 0, moved);
+
+    setLocalProducts(next);
+    setIsDirty(true);
+  };
+
   const handleAddProductToCategory = (productId: string) => {
-    if (!activeCategory) return;
-    assignProductToCategory(productId, activeCategory.id);
+    const p = products.find((prod) => String(prod.id).trim() === String(productId).trim());
+    if (!p) return;
+    if (localProducts.some((item) => String(item.id).trim() === String(productId).trim())) return;
+
+    setLocalProducts((prev) => [...prev, p]);
+    setIsDirty(true);
   };
 
   const handleRemoveProductFromCategory = (productId: string) => {
-    if (!activeCategory) return;
-    removeProductFromCategory(productId, activeCategory.id);
+    setLocalProducts((prev) => prev.filter((p) => String(p.id).trim() !== String(productId).trim()));
+    setIsDirty(true);
   };
 
   const handleChangeProductCategory = (productId: string, newCategoryId: string) => {
-    if (!newCategoryId) return;
-    if (activeCategory) {
-      removeProductFromCategory(productId, activeCategory.id);
-    }
+    if (!newCategoryId || newCategoryId === activeCategory?.id) return;
+    setLocalProducts((prev) => prev.filter((p) => String(p.id).trim() !== String(productId).trim()));
+    setIsDirty(true);
     assignProductToCategory(productId, newCategoryId);
+  };
+
+  const handleCancelChanges = () => {
+    setLocalProducts(serverProducts);
+    setIsDirty(false);
+    setSaveNotification(null);
+  };
+
+  // --- PERSIST TO SUPABASE HANDLER (khi bấm nút "Lưu thay đổi" mới lưu lên Supabase) ---
+  const handleSaveToSupabase = async () => {
+    if (!activeCategory) return;
+    setIsSaving(true);
+    setSaveNotification(null);
+    try {
+      const orderedIds = localProducts.map((p) => p.id);
+      const res = await saveCategoryProducts(activeCategory.id, orderedIds);
+      if (res.success) {
+        setIsDirty(false);
+        setSaveNotification({
+          type: "success",
+          message: res.message,
+        });
+      } else {
+        setSaveNotification({
+          type: "error",
+          message: res.message,
+        });
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      setSaveNotification({
+        type: "error",
+        message: `Lỗi: ${msg}`,
+      });
+    } finally {
+      setIsSaving(false);
+      setTimeout(() => {
+        setSaveNotification(null);
+      }, 4000);
+    }
   };
 
   return (
@@ -248,8 +344,13 @@ export default function CategoryProductManagement() {
                   Mã: #{activeCategory.id}
                 </span>
                 <span className="rounded-full bg-indigo-50 dark:bg-indigo-950 text-indigo-600 dark:text-indigo-400 px-2.5 py-0.5 text-xs font-bold">
-                  {assignedProducts.length} sản phẩm
+                  {localProducts.length} sản phẩm
                 </span>
+                {isDirty && (
+                  <span className="rounded-full bg-amber-50 dark:bg-amber-950/60 text-amber-600 dark:text-amber-400 px-2.5 py-0.5 text-xs font-bold border border-amber-200 dark:border-amber-800/60 animate-pulse">
+                    Có thay đổi chưa lưu
+                  </span>
+                )}
               </div>
               <h3 className="text-xl font-black text-zinc-900 dark:text-white">
                 {activeCategory.name}
@@ -267,15 +368,54 @@ export default function CategoryProductManagement() {
               >
                 👁 Xem trên web
               </Link>
+              {isDirty && (
+                <button
+                  type="button"
+                  onClick={handleCancelChanges}
+                  disabled={isSaving}
+                  className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 px-3 py-2 text-xs font-bold text-zinc-600 dark:text-zinc-400 hover:bg-zinc-100 dark:hover:bg-zinc-700 transition-colors cursor-pointer"
+                  title="Khôi phục thứ tự đã lưu trước đó"
+                >
+                  ↺ Hủy thay đổi
+                </button>
+              )}
               <button
-                onClick={() => setIsPickerOpen(true)}
-                className="rounded-xl bg-indigo-600 px-4 py-2 text-xs font-bold text-white hover:bg-indigo-500 shadow-sm transition-colors cursor-pointer inline-flex items-center gap-1.5"
+                type="button"
+                onClick={handleSaveToSupabase}
+                disabled={isSaving}
+                className={`rounded-xl px-4 py-2 text-xs font-bold text-white shadow-sm transition-all cursor-pointer inline-flex items-center gap-1.5 disabled:opacity-50 ${
+                  isDirty
+                    ? "bg-emerald-600 hover:bg-emerald-500 ring-2 ring-emerald-400/50 shadow-md"
+                    : "bg-emerald-600 hover:bg-emerald-500 opacity-90"
+                }`}
               >
-                <PlusIcon className="h-3.5 w-3.5" />
-                Thêm sản phẩm
+                {isSaving ? (
+                  <>
+                    <span className="inline-block h-3.5 w-3.5 animate-spin rounded-full border-2 border-white border-t-transparent" />
+                    Đang lưu...
+                  </>
+                ) : (
+                  <>
+                    <CheckIcon className="h-3.5 w-3.5" />
+                    Lưu thay đổi {isDirty ? "(•)" : ""}
+                  </>
+                )}
               </button>
             </div>
           </div>
+
+          {saveNotification && (
+            <div
+              className={`mt-4 rounded-xl p-3 text-xs font-bold flex items-center gap-2 animate-in fade-in slide-in-from-top-1 ${
+                saveNotification.type === "success"
+                  ? "bg-emerald-50 dark:bg-emerald-950/60 text-emerald-700 dark:text-emerald-300 border border-emerald-200 dark:border-emerald-800"
+                  : "bg-rose-50 dark:bg-rose-950/60 text-rose-700 dark:text-rose-300 border border-rose-200 dark:border-rose-800"
+              }`}
+            >
+              <span>{saveNotification.type === "success" ? "✅" : "❌"}</span>
+              <span>{saveNotification.message}</span>
+            </div>
+          )}
         </div>
       )}
 
@@ -423,10 +563,10 @@ export default function CategoryProductManagement() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-zinc-200 dark:divide-zinc-800">
-                {paginatedProducts.map((p, pIdx) => {
-                  const globalIdx = startIndex + pIdx;
-                  const isFirst = globalIdx === 0;
-                  const isLast = globalIdx === assignedProducts.length - 1;
+                {paginatedProducts.map((p) => {
+                  const globalIdx = localProducts.findIndex((item) => String(item.id).trim() === String(p.id).trim());
+                  const isFirst = globalIdx <= 0;
+                  const isLast = globalIdx >= localProducts.length - 1;
 
                   return (
                     <tr
@@ -435,9 +575,22 @@ export default function CategoryProductManagement() {
                     >
                       {/* 1. Order Column */}
                       <td className="py-4 px-4 sm:px-6 text-center">
-                        <span className="inline-flex items-center justify-center font-mono text-xs font-bold text-zinc-600 dark:text-zinc-300 bg-zinc-100 dark:bg-zinc-800/80 px-2.5 py-1 rounded-lg border border-zinc-200/60 dark:border-zinc-700/60">
-                          #{p.categoryOrder}
-                        </span>
+                        <div className="inline-flex items-center justify-center">
+                          <input
+                            type="number"
+                            min={1}
+                            max={localProducts.length}
+                            value={p.categoryOrder}
+                            onChange={(e) => {
+                              const val = parseInt(e.target.value, 10);
+                              if (!isNaN(val) && val > 0) {
+                                handleChangeOrderNumber(p.id, val);
+                              }
+                            }}
+                            title="Số thứ tự hiển thị (chỉ đổi trên giao diện, bấm 'Lưu thay đổi' để lưu lên Supabase)"
+                            className="w-14 text-center font-mono text-xs font-bold text-zinc-700 dark:text-zinc-200 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 rounded-lg border border-zinc-200 dark:border-zinc-700 focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 outline-none transition-colors"
+                          />
+                        </div>
                       </td>
 
                       {/* 2. Product Info */}
@@ -500,18 +653,18 @@ export default function CategoryProductManagement() {
                         <div className="flex items-center justify-end gap-1.5">
                           <button
                             type="button"
-                            onClick={() => moveCategoryProductOrder(activeCategory.id, p.id, "up")}
+                            onClick={() => handleMoveOrder(p.id, "up")}
                             disabled={isFirst}
-                            title="Chuyển lên trên"
+                            title="Chuyển lên trên (chỉ ở UI, bấm 'Lưu thay đổi' để lưu Supabase)"
                             className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
                           >
                             ▲
                           </button>
                           <button
                             type="button"
-                            onClick={() => moveCategoryProductOrder(activeCategory.id, p.id, "down")}
+                            onClick={() => handleMoveOrder(p.id, "down")}
                             disabled={isLast}
-                            title="Chuyển xuống dưới"
+                            title="Chuyển xuống dưới (chỉ ở UI, bấm 'Lưu thay đổi' để lưu Supabase)"
                             className="inline-flex items-center justify-center h-8 w-8 rounded-xl border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-800 text-xs font-bold text-zinc-700 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-700 disabled:opacity-25 disabled:cursor-not-allowed transition-colors cursor-pointer"
                           >
                             ▼
