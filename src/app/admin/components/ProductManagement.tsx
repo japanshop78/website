@@ -201,7 +201,7 @@ export default function ProductManagement() {
         <div className="relative flex-1 max-w-md">
           <input
             type="text"
-            placeholder="Tìm kiếm theo tên sản phẩm, mã ID, tag..."
+            placeholder="Tìm kiếm theo tên sản phẩm, mã ID..."
             value={searchQuery}
             onChange={(e) => setSearchQuery(e.target.value)}
             className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 py-2 pl-10 pr-4 text-sm text-zinc-900 dark:text-white outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-colors"
@@ -405,13 +405,9 @@ export default function ProductManagement() {
                                   🚫 Đang ẩn
                                 </span>
                               )}
-                              {p.tag && (
-                                <span className="rounded-full bg-zinc-900 dark:bg-zinc-100 text-white dark:text-zinc-950 px-2 py-0.5 text-[10px] font-bold">
-                                  {p.tag}
-                                </span>
-                              )}
+
                             </div>
-                            <h3 className="font-bold text-zinc-900 dark:text-white line-clamp-1 mt-0.5">
+                            <h3 className="font-bold uppercase text-zinc-900 dark:text-white line-clamp-1 mt-0.5">
                               {p.name}
                             </h3>
                             <p className="text-xs text-zinc-500 line-clamp-1 mt-0.5">

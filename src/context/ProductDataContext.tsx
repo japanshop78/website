@@ -297,7 +297,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         productId: String(cp.product_id).trim(),
         order: typeof cp.order_num === "number" && cp.order_num > 0
           ? cp.order_num
-          : (typeof cp.id === "number" && cp.id > 0 ? cp.id : idx + 1),
+          : idx + 1,
       }));
       const loadedOrders: ProductOrder[] = dbOrders.map((o) => ({
         productId: String(o.product_id).trim(),

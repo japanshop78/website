@@ -417,11 +417,7 @@ export default function DiscountedProductsSection() {
                             </div>
                           )}
 
-                          {product.tag && (
-                            <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2 py-0.5 text-xs font-semibold shadow-xs z-10">
-                              {product.tag}
-                            </span>
-                          )}
+
 
                           {/* Glowing Discount Badge */}
                           {discount && (
@@ -439,7 +435,7 @@ export default function DiscountedProductsSection() {
                                 {categoryName}
                               </span>
                             )}
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
+                            <h3 className="text-sm font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2 group-hover:text-rose-600 dark:group-hover:text-rose-400 transition-colors">
                               <Link href={`/product/${product.id}`}>
                                 <span aria-hidden="true" className="absolute inset-0" />
                                 {product.name}

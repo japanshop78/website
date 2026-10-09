@@ -238,10 +238,10 @@ export default function ProductDetailPage({ product, related }: Props) {
             )}
 
             <div>
-              <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
+              {/* <span className="text-xs font-semibold uppercase tracking-widest text-indigo-600 dark:text-indigo-400">
                 {categoryName}
-              </span>
-              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 dark:text-white sm:text-4xl">
+              </span> */}
+              <h1 className="mt-2 text-3xl font-extrabold tracking-tight text-zinc-900 uppercase dark:text-white sm:text-4xl">
                 {currentProduct.name}
               </h1>
             </div>
@@ -289,8 +289,25 @@ export default function ProductDetailPage({ product, related }: Props) {
               )}
             </div>
 
-            {/* Divider */}
-            <div className="border-t border-zinc-200 dark:border-zinc-800" />
+            {/* Khuyến Mãi - Ưu Đãi Box */}
+            <div className="rounded-2xl border-2 border-dashed border-red-500/60 dark:border-red-500/40 bg-red-50/30 dark:bg-red-950/20 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3 pb-2.5 border-b border-dashed border-red-300 dark:border-red-900/60">
+                <span className="text-lg leading-none" role="img" aria-label="Khuyến mãi">🎁</span>
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
+                  ƯU ĐÃI
+                </span>
+              </div>
+              <ul className="space-y-2 text-xs sm:text-[13px] text-zinc-800 dark:text-zinc-200">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
+                  <span>Miễn phí vận chuyển cho đơn hàng từ 1000.000đ</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
+                  <span>Cam kết chính hãng 100%</span>
+                </li>
+              </ul>
+            </div>
 
             {/* Quantity */}
             <div className="flex flex-col gap-2">
@@ -352,6 +369,17 @@ export default function ProductDetailPage({ product, related }: Props) {
                 <BoltIcon className="h-5 w-5" />
                 Mua ngay
               </button>
+            </div>
+
+            {/* Hotline đặt mua */}
+            <div className="flex justify-center items-center gap-1.5 text-sm sm:text-base text-zinc-800 dark:text-zinc-200">
+              <span>Gọi đặt mua</span>
+              <a
+                href="tel:0902493895"
+                className="font-bold text-red-700 dark:text-red-400 hover:underline transition-colors"
+              >
+                0902 493 895
+              </a>
             </div>
           </div>
         </div>
@@ -431,11 +459,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                         Xem chi tiết
                       </span>
                     </div>
-                    {p.tag && (
-                      <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 text-white px-2 py-0.5 text-[11px] font-semibold z-20">
-                        {p.tag}
-                      </span>
-                    )}
+
                     {relatedDiscount && (
                       <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-20">
                         -{relatedDiscount}%
@@ -443,7 +467,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                     )}
                   </div>
                   <div>
-                    <p className="text-sm font-semibold text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
+                    <p className="text-sm font-semibold uppercase text-zinc-900 dark:text-white group-hover:text-indigo-600 dark:group-hover:text-indigo-400 transition-colors line-clamp-2">
                       {p.name}
                     </p>
                     <div className="mt-1 flex items-center gap-2">

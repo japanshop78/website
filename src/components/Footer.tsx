@@ -44,9 +44,9 @@ export default function Footer() {
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
-                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-emerald-600 dark:bg-emerald-400 shrink-0" />
+                <span className="mt-1.5 h-1.5 w-1.5 rounded-full bg-indigo-600 dark:bg-indigo-400 shrink-0" />
                 <span>
-                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Freeship:</strong> Đơn từ 1.000.000đ (Đang ưu đãi 10/10 – 20/10: Freeship mọi đơn hàng & Giảm 10%)
+                  <strong className="font-semibold text-zinc-800 dark:text-zinc-200">Freeship:</strong> Đơn từ 1.000.000đ
                 </span>
               </li>
               <li className="flex items-start gap-2.5">
@@ -103,7 +103,7 @@ export default function Footer() {
                 </a>
 
                 {/* Address Card */}
-                <div className="flex items-start gap-3 rounded-2xl p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800/60">
+                {/* <div className="flex items-start gap-3 rounded-2xl p-3 bg-zinc-50 dark:bg-zinc-800/50 border border-zinc-200/60 dark:border-zinc-800/60">
                   <div className="flex h-11 w-11 shrink-0 items-center justify-center rounded-xl bg-blue-50 text-blue-600 dark:bg-blue-950/60 dark:text-blue-400 border border-blue-200/60 dark:border-blue-900/40 mt-0.5">
                     <LocationIcon className="h-5 w-5" />
                   </div>
@@ -124,7 +124,7 @@ export default function Footer() {
                       <span aria-hidden="true">↗</span>
                     </a>
                   </div>
-                </div>
+                </div> */}
 
                 {/* Email Card */}
                 <a

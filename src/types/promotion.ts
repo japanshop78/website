@@ -37,12 +37,12 @@ export interface DbPromotionRow {
 }
 
 /**
- * Làm tròn giá về hàng nghìn gần nhất (VD: 310500 -> 310000)
+ * Làm tròn giá về bước 500đ gần nhất (VD: 75.000đ - 10% = 67.500đ, không bị chặt xuống 67.000đ)
  */
 export function calculateDiscountedPrice(price: number, discountPercent: number): number {
   if (discountPercent <= 0) return price;
   const discounted = price * (1 - discountPercent / 100);
-  return Math.floor(discounted / 1000) * 1000;
+  return Math.round(discounted / 500) * 500;
 }
 
 /**
@@ -62,7 +62,7 @@ export function isCampaignActive(promo: PromotionCampaign | null | undefined): b
 
 export interface ProductPricing {
   originalPrice: number;        // Giá niêm yết gốc (product.price)
-  effectivePrice: number;       // Giá bán thực tế sau khi giảm 10% (làm tròn nghìn)
+  effectivePrice: number;       // Giá bán thực tế sau khi giảm 10%
   effectiveOldPrice?: number;   // Giá gạch ngang (oldPrice gốc nếu có, hoặc product.price nếu chưa có)
   discountPercent: number | null; // % giảm giá hiển thị trên badge (-10%, -25%...), null nếu 0
   savingsAmount: number;        // Số tiền tiết kiệm được
@@ -98,13 +98,15 @@ export function getProductPricing(
 
   // Khi có chiến dịch khuyến mãi toàn sàn (VD: 10%):
   const effectivePrice = calculateDiscountedPrice(product.price, promoPercent);
-  const effectiveOldPrice = product.oldPrice && product.oldPrice > product.price
+  const hasRealOldPrice = Boolean(product.oldPrice && product.oldPrice > product.price);
+  const effectiveOldPrice = hasRealOldPrice && product.oldPrice
     ? product.oldPrice
     : product.price;
 
-  const baseOld = effectiveOldPrice;
-  const totalPercent = baseOld > effectivePrice
-    ? Math.max(promoPercent, Math.round(((baseOld - effectivePrice) / baseOld) * 100))
+  // Nếu sản phẩm đã có giảm giá cũ (giảm giá kép), tính tổng % giảm từ giá cũ ban đầu.
+  // Nếu sản phẩm chỉ hưởng khuyến mãi chiến dịch, % giảm hiển thị chính xác là % của chiến dịch (promoPercent).
+  const totalPercent = hasRealOldPrice
+    ? Math.max(promoPercent, Math.round(((effectiveOldPrice - effectivePrice) / effectiveOldPrice) * 100))
     : promoPercent;
 
   const savingsAmount = effectiveOldPrice > effectivePrice ? effectiveOldPrice - effectivePrice : 0;

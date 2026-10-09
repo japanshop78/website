@@ -53,8 +53,38 @@ export default function CategoryDetailPage({
   stats,
   allCategories
 }: Props) {
-  const { getProductsByCategoryId, isLoaded, promotion, isPromotionActive } = useProductData();
+  const { getProductsByCategoryId, categoryProducts, isLoaded, promotion, isPromotionActive } = useProductData();
   const { addToCart } = useCart();
+
+  // Ánh xạ thứ tự order_num của sản phẩm trong danh mục hiện tại
+  const categoryOrderMap = useMemo(() => {
+    const map = new Map<string, number>();
+    const targetId = category.id.toLowerCase().trim();
+    const normalizeId = (val: string) =>
+      val.toLowerCase().trim().replace(/^c-0?/, "").replace(/^0+/, "");
+    const targetNum = normalizeId(category.id);
+
+    categoryProducts
+      .filter(
+        (cp) =>
+          cp.categoryId.toLowerCase().trim() === targetId ||
+          normalizeId(cp.categoryId) === targetNum
+      )
+      .forEach((cp) => {
+        map.set(String(cp.productId).trim(), cp.order ?? 9999);
+      });
+
+    // Fallback thứ tự theo prop products nếu chưa có trong map
+    products.forEach((p, idx) => {
+      const pid = String(p.id).trim();
+      if (!map.has(pid)) {
+        map.set(pid, idx + 1);
+      }
+    });
+
+    return map;
+  }, [categoryProducts, category.id, products]);
+
   const activeProducts = useMemo(() => {
     const list = isLoaded ? getProductsByCategoryId(category.id) : products;
     return list.filter((p) => p.visible !== false);
@@ -161,7 +191,7 @@ export default function CategoryDetailPage({
       );
     }
 
-    // Sorting (theo giá bán thực tế)
+    // Sorting (theo giá bán thực tế hoặc thứ tự order_num)
     if (sortBy === "price-asc") {
       result.sort(
         (a, b) =>
@@ -176,10 +206,18 @@ export default function CategoryDetailPage({
       );
     } else if (sortBy === "rating") {
       result.sort((a, b) => b.rating - a.rating);
+    } else {
+      // Mặc định hoặc "featured": Sắp xếp theo order_num tăng dần (1, 2, 3...)
+      result.sort((a, b) => {
+        const orderA = categoryOrderMap.get(String(a.id).trim()) ?? 9999;
+        const orderB = categoryOrderMap.get(String(b.id).trim()) ?? 9999;
+        if (orderA !== orderB) return orderA - orderB;
+        return Number(a.id) - Number(b.id);
+      });
     }
 
     return result;
-  }, [activeProducts, searchQuery, selectedSubcategory, priceFilter, sortBy, promotion, isPromotionActive]);
+  }, [activeProducts, searchQuery, selectedSubcategory, priceFilter, sortBy, promotion, isPromotionActive, categoryOrderMap]);
 
   const otherCategories = allCategories.filter((c) => c.id !== category.id);
 
@@ -326,7 +364,7 @@ export default function CategoryDetailPage({
                 onChange={(e) => setSortBy(e.target.value as "featured" | "price-asc" | "price-desc" | "rating")}
                 className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
               >
-                <option value="featured">Nổi bật nhất</option>
+                <option value="featured">Thứ tự sắp xếp (Mặc định)</option>
                 <option value="price-asc">Giá: Thấp đến Cao</option>
                 <option value="price-desc">Giá: Cao đến Thấp</option>
                 <option value="rating">Đánh giá cao nhất</option>
@@ -498,7 +536,7 @@ export default function CategoryDetailPage({
 
                     {/* Content */}
                     <div className="mt-4">
-                      <h3 className="text-base font-semibold text-zinc-900 dark:text-white line-clamp-2">
+                      <h3 className="text-base font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2">
                         <Link href={`/product/${product.id}`}>
                           <span aria-hidden="true" className="absolute inset-0" />
                           {product.name}
@@ -609,7 +647,7 @@ export default function CategoryDetailPage({
 
                   <div className="flex-1 flex flex-col justify-between w-full">
                     <div>
-                      <h3 className="text-lg font-bold text-zinc-900 dark:text-white">
+                      <h3 className="text-lg font-bold text-zinc-900 uppercase dark:text-white">
                         <Link href={`/product/${product.id}`}>
                           {product.name}
                         </Link>

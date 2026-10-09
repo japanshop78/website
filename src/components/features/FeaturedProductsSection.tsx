@@ -263,11 +263,7 @@ export default function FeaturedProductsSection() {
                             </div>
                           )}
 
-                          {product.tag && (
-                            <span className="absolute top-2.5 right-2.5 rounded-full bg-zinc-900/90 dark:bg-zinc-50/90 text-white dark:text-zinc-950 px-2 py-0.5 text-xs font-semibold shadow-xs z-10">
-                              {product.tag}
-                            </span>
-                          )}
+
 
                           {discount && (
                             <span className="absolute top-2.5 left-2.5 w-10 h-10 rounded-full bg-rose-600 text-white text-xs font-bold flex items-center justify-center shadow-md tracking-tight z-10">
@@ -284,7 +280,7 @@ export default function FeaturedProductsSection() {
                                 {categoryName}
                               </span>
                             )}
-                            <h3 className="text-sm font-semibold text-zinc-900 dark:text-white line-clamp-2">
+                            <h3 className="text-sm font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2">
                               <Link href={`/product/${product.id}`}>
                                 <span aria-hidden="true" className="absolute inset-0" />
                                 {product.name}

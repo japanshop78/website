@@ -123,7 +123,7 @@ export default function CartDrawer() {
                       <Link
                         href={`/product/${item.product.id}`}
                         onClick={closeCartDrawer}
-                        className="text-xs font-semibold text-zinc-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
+                        className="text-xs font-semibold uppercase text-zinc-900 dark:text-white line-clamp-2 hover:text-indigo-600 dark:hover:text-indigo-400 transition-colors"
                       >
                         {item.product.name}
                       </Link>
