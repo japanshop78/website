@@ -289,8 +289,25 @@ export default function ProductDetailPage({ product, related }: Props) {
               )}
             </div>
 
-            {/* Divider */}
-            <div className="border-t border-zinc-200 dark:border-zinc-800" />
+            {/* Khuyến Mãi - Ưu Đãi Box */}
+            <div className="rounded-2xl border-2 border-dashed border-red-500/60 dark:border-red-500/40 bg-red-50/30 dark:bg-red-950/20 p-4 sm:p-5">
+              <div className="flex items-center gap-2 mb-3 pb-2.5 border-b border-dashed border-red-300 dark:border-red-900/60">
+                <span className="text-lg leading-none" role="img" aria-label="Khuyến mãi">🎁</span>
+                <span className="text-xs sm:text-sm font-bold uppercase tracking-wider text-red-700 dark:text-red-400">
+                  ƯU ĐÃI
+                </span>
+              </div>
+              <ul className="space-y-2 text-xs sm:text-[13px] text-zinc-800 dark:text-zinc-200">
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
+                  <span>Miễn phí vận chuyển cho đơn hàng từ 1000.000đ</span>
+                </li>
+                <li className="flex items-start gap-2">
+                  <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
+                  <span>Cam kết chính hãng 100%</span>
+                </li>
+              </ul>
+            </div>
 
             {/* Quantity */}
             <div className="flex flex-col gap-2">
@@ -352,6 +369,17 @@ export default function ProductDetailPage({ product, related }: Props) {
                 <BoltIcon className="h-5 w-5" />
                 Mua ngay
               </button>
+            </div>
+
+            {/* Hotline đặt mua */}
+            <div className="flex justify-center items-center gap-1.5 text-sm sm:text-base text-zinc-800 dark:text-zinc-200">
+              <span>Gọi đặt mua</span>
+              <a
+                href="tel:0902493895"
+                className="font-bold text-red-700 dark:text-red-400 hover:underline transition-colors"
+              >
+                0902 493 895
+              </a>
             </div>
           </div>
         </div>
