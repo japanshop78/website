@@ -300,7 +300,7 @@ export default function ProductDetailPage({ product, related }: Props) {
               <ul className="space-y-2 text-xs sm:text-[13px] text-zinc-800 dark:text-zinc-200">
                 <li className="flex items-start gap-2">
                   <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
-                  <span>Miễn phí vận chuyển cho đơn hàng từ 1000.000đ</span>
+                  <span>Miễn phí vận chuyển cho đơn hàng từ 1.000.000đ</span>
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
