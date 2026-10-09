@@ -165,6 +165,7 @@ interface ProductContextType {
   removeProductFromCategory: (productId: string, categoryId: string) => Promise<void>;
   moveCategoryProductOrder: (categoryId: string, productId: string, direction: "up" | "down") => Promise<void>;
   updateCategoryProductOrder: (categoryId: string, productId: string, newOrder: number) => Promise<void>;
+  saveCategoryProducts: (categoryId?: string, orderedProductIds?: string[]) => Promise<{ success: boolean; message: string }>;
   exportCategoryProductsJSON: () => string;
   importCategoryProductsJSON: (jsonString: string) => boolean;
   getProductById: (id: string) => Product | undefined;
@@ -294,7 +295,9 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       const loadedCatProducts: CategoryProductMapping[] = dbCatProducts.map((cp, idx) => ({
         categoryId: String(cp.category_id).trim(),
         productId: String(cp.product_id).trim(),
-        order: typeof cp.order_num === "number" ? cp.order_num : (typeof cp.id === "number" ? cp.id : idx + 1),
+        order: typeof cp.order_num === "number" && cp.order_num > 0
+          ? cp.order_num
+          : (typeof cp.id === "number" && cp.id > 0 ? cp.id : idx + 1),
       }));
       const loadedOrders: ProductOrder[] = dbOrders.map((o) => ({
         productId: String(o.product_id).trim(),
@@ -861,18 +864,20 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       try {
         await supabase.from("category_products").delete().eq("category_id", targetId);
         if (newMappings.length > 0) {
-          try {
-            await supabase.from("category_products").insert(
-              newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId, order_num: m.order }))
-            );
-          } catch (insertErr: unknown) {
-            const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
-            if (msg.includes("order_num")) {
-              await supabase.from("category_products").insert(
+          const { error: insErr } = await supabase.from("category_products").insert(
+            newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId, order_num: m.order }))
+          );
+          if (insErr) {
+            const msg = insErr.message || "";
+            if (msg.includes("order_num") || insErr.code === "PGRST204") {
+              const { error: fallbackErr } = await supabase.from("category_products").insert(
                 newMappings.map((m) => ({ category_id: m.categoryId, product_id: m.productId }))
               );
+              if (fallbackErr) {
+                console.error("Failed fallback insert setCategoryProducts:", fallbackErr);
+              }
             } else {
-              throw insertErr;
+              console.error("Failed to insert category_products in Supabase:", insErr);
             }
           }
         }
@@ -883,30 +888,41 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   };
 
   const assignProductToCategory = async (productId: string, categoryId: string, order?: number) => {
-    const exists = categoryProducts.some(
-      (cp) => String(cp.productId).trim() === String(productId).trim() && cp.categoryId === categoryId
-    );
-    if (!exists) {
-      const existingInCat = categoryProducts.filter((cp) => cp.categoryId === categoryId);
-      const nextOrder = typeof order === "number" ? order : existingInCat.length + 1;
-      const updated = [...categoryProducts, { categoryId, productId, order: nextOrder }];
-      setCategoryProductsState(updated);
+    let nextOrder = order;
+    setCategoryProductsState((prev) => {
+      const exists = prev.some(
+        (cp) => String(cp.productId).trim() === String(productId).trim() && cp.categoryId === categoryId
+      );
+      if (exists) return prev;
+      const existingInCat = prev.filter((cp) => cp.categoryId === categoryId);
+      if (typeof nextOrder !== "number") {
+        nextOrder = existingInCat.length + 1;
+      }
+      return [...prev, { categoryId, productId, order: nextOrder }];
+    });
 
-      if (supabase && isSupabaseConfigured()) {
-        try {
-          try {
-            await supabase.from("category_products").insert({ category_id: categoryId, product_id: productId, order_num: nextOrder });
-          } catch (insertErr: unknown) {
-            const msg = insertErr instanceof Error ? insertErr.message : String(insertErr);
-            if (msg.includes("order_num")) {
-              await supabase.from("category_products").insert({ category_id: categoryId, product_id: productId });
-            } else {
-              throw insertErr;
+    if (supabase && isSupabaseConfigured()) {
+      try {
+        const { error: insErr } = await supabase.from("category_products").insert({
+          category_id: categoryId,
+          product_id: productId,
+          order_num: nextOrder ?? 1,
+        });
+        if (insErr) {
+          const msg = insErr.message || "";
+          if (msg.includes("order_num") || insErr.code === "PGRST204") {
+            const { error: fallbackErr } = await supabase
+              .from("category_products")
+              .insert({ category_id: categoryId, product_id: productId });
+            if (fallbackErr) {
+              console.error("Failed fallback insert category_product in Supabase", fallbackErr);
             }
+          } else {
+            console.error("Failed to assign product category in Supabase", insErr);
           }
-        } catch (err) {
-          console.error("Failed to assign product category in Supabase", err);
         }
+      } catch (err) {
+        console.error("Failed to assign product category in Supabase", err);
       }
     }
   };
@@ -920,7 +936,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     const targetProdId = String(productId).trim();
 
     const catProds = categoryProducts
-      .filter((cp) => cp.categoryId === targetCatId)
+      .filter((cp) => cp.categoryId.toLowerCase() === targetCatId.toLowerCase())
       .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
     const index = catProds.findIndex((cp) => String(cp.productId).trim() === targetProdId);
@@ -929,46 +945,27 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     if (direction === "down" && index === catProds.length - 1) return;
 
     const swapIndex = direction === "up" ? index - 1 : index + 1;
-    const currentItem = catProds[index];
-    const swapItem = catProds[swapIndex];
+    const reordered = [...catProds];
+    const temp = reordered[index];
+    reordered[index] = reordered[swapIndex];
+    reordered[swapIndex] = temp;
 
-    const currentOrder = currentItem.order ?? index + 1;
-    const swapOrder = swapItem.order ?? swapIndex + 1;
-
-    const newCurrentOrder = currentOrder === swapOrder ? (direction === "up" ? swapOrder - 1 : swapOrder + 1) : swapOrder;
-    const newSwapOrder = currentOrder === swapOrder ? currentOrder : currentOrder;
+    const orderMap = new Map<string, number>();
+    reordered.forEach((item, idx) => {
+      orderMap.set(String(item.productId).trim(), idx + 1);
+    });
 
     const newMappings = categoryProducts.map((cp) => {
-      if (cp.categoryId === targetCatId && String(cp.productId).trim() === String(currentItem.productId).trim()) {
-        return { ...cp, order: newCurrentOrder };
-      }
-      if (cp.categoryId === targetCatId && String(cp.productId).trim() === String(swapItem.productId).trim()) {
-        return { ...cp, order: newSwapOrder };
+      if (cp.categoryId.toLowerCase() === targetCatId.toLowerCase()) {
+        const newOrd = orderMap.get(String(cp.productId).trim());
+        if (newOrd !== undefined) {
+          return { ...cp, order: newOrd };
+        }
       }
       return cp;
     });
 
     setCategoryProductsState(newMappings);
-
-    if (supabase && isSupabaseConfigured()) {
-      try {
-        try {
-          await supabase
-            .from("category_products")
-            .update({ order_num: newCurrentOrder })
-            .match({ category_id: targetCatId, product_id: currentItem.productId });
-          await supabase
-            .from("category_products")
-            .update({ order_num: newSwapOrder })
-            .match({ category_id: targetCatId, product_id: swapItem.productId });
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!msg.includes("order_num")) throw err;
-        }
-      } catch (err) {
-        console.error("Failed to update category product order in Supabase", err);
-      }
-    }
   };
 
   const updateCategoryProductOrder = async (
@@ -979,41 +976,149 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     const targetCatId = categoryId.trim();
     const targetProdId = String(productId).trim();
 
-    const newMappings = categoryProducts.map((cp) => {
-      if (cp.categoryId === targetCatId && String(cp.productId).trim() === targetProdId) {
-        return { ...cp, order: newOrder };
-      }
-      return cp;
-    });
-
-    setCategoryProductsState(newMappings);
-
-    if (supabase && isSupabaseConfigured()) {
-      try {
-        try {
-          await supabase
-            .from("category_products")
-            .update({ order_num: newOrder })
-            .match({ category_id: targetCatId, product_id: targetProdId });
-        } catch (err: unknown) {
-          const msg = err instanceof Error ? err.message : String(err);
-          if (!msg.includes("order_num")) throw err;
+    setCategoryProductsState((prev) =>
+      prev.map((cp) => {
+        if (cp.categoryId.toLowerCase() === targetCatId.toLowerCase() && String(cp.productId).trim() === targetProdId) {
+          return { ...cp, order: newOrder };
         }
-      } catch (err) {
-        console.error("Failed to update category product order in Supabase", err);
+        return cp;
+      })
+    );
+  };
+
+  const saveCategoryProducts = async (
+    categoryId?: string,
+    orderedProductIds?: string[]
+  ): Promise<{ success: boolean; message: string }> => {
+    if (!supabase || !isSupabaseConfigured()) {
+      return { success: false, message: "Chưa cấu hình Supabase URL và Anon Key" };
+    }
+
+    try {
+      const targetCatId = categoryId ? categoryId.trim() : null;
+
+      if (targetCatId && orderedProductIds) {
+        const newMappings: CategoryProductMapping[] = orderedProductIds.map((pId, idx) => ({
+          categoryId: targetCatId,
+          productId: String(pId).trim(),
+          order: idx + 1,
+        }));
+
+        const remaining = categoryProducts.filter(
+          (cp) => cp.categoryId.toLowerCase() !== targetCatId.toLowerCase()
+        );
+        const updatedAll = [...remaining, ...newMappings];
+        setCategoryProductsState(updatedAll);
+
+        await supabase.from("category_products").delete().eq("category_id", targetCatId);
+
+        if (newMappings.length > 0) {
+          const rowsToInsert = newMappings.map((m) => ({
+            category_id: m.categoryId,
+            product_id: m.productId,
+            order_num: m.order,
+          }));
+
+          const chunkSize = 50;
+          for (let i = 0; i < rowsToInsert.length; i += chunkSize) {
+            const chunk = rowsToInsert.slice(i, i + chunkSize);
+            const { error } = await supabase.from("category_products").insert(chunk);
+            if (error) {
+              console.error("Lỗi khi lưu category_products lên Supabase:", error);
+              throw error;
+            }
+          }
+        }
+
+        return {
+          success: true,
+          message: `Đã lưu thành công ${newMappings.length} sản phẩm theo đúng thứ tự lên Supabase!`,
+        };
       }
+
+      const targetMappings = targetCatId
+        ? categoryProducts.filter((cp) => cp.categoryId.toLowerCase() === targetCatId.toLowerCase())
+        : categoryProducts;
+
+      if (targetMappings.length === 0 && targetCatId) {
+        await supabase.from("category_products").delete().eq("category_id", targetCatId);
+        return { success: true, message: `Đã cập nhật danh mục ${targetCatId}: 0 sản phẩm.` };
+      }
+
+      const catGroups = new Map<string, CategoryProductMapping[]>();
+      targetMappings.forEach((cp) => {
+        const list = catGroups.get(cp.categoryId) || [];
+        list.push(cp);
+        catGroups.set(cp.categoryId, list);
+      });
+
+      const updatedCategoryProducts = [...categoryProducts];
+      const rowsToUpsert: { category_id: string; product_id: string; order_num: number }[] = [];
+
+      for (const [catId, items] of catGroups.entries()) {
+        items.sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
+        items.forEach((item, idx) => {
+          const cleanOrder = idx + 1;
+          rowsToUpsert.push({
+            category_id: catId,
+            product_id: item.productId,
+            order_num: cleanOrder,
+          });
+
+          const stateIdx = updatedCategoryProducts.findIndex(
+            (cp) => cp.categoryId === catId && String(cp.productId).trim() === String(item.productId).trim()
+          );
+          if (stateIdx !== -1) {
+            updatedCategoryProducts[stateIdx] = {
+              ...updatedCategoryProducts[stateIdx],
+              order: cleanOrder,
+            };
+          }
+        });
+      }
+
+      setCategoryProductsState(updatedCategoryProducts);
+
+      const chunkSize = 50;
+      for (let i = 0; i < rowsToUpsert.length; i += chunkSize) {
+        const chunk = rowsToUpsert.slice(i, i + chunkSize);
+        const { error } = await supabase
+          .from("category_products")
+          .upsert(chunk, { onConflict: "category_id,product_id" });
+
+        if (error) {
+          console.error("Lỗi khi lưu category_products lên Supabase:", error);
+          throw error;
+        }
+      }
+
+      return {
+        success: true,
+        message: `Đã lưu thành công thứ tự ${rowsToUpsert.length} sản phẩm lên Supabase!`,
+      };
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : String(err);
+      console.error("saveCategoryProducts error:", msg);
+      return { success: false, message: `Lỗi lưu Supabase: ${msg}` };
     }
   };
 
   const removeProductFromCategory = async (productId: string, categoryId: string) => {
-    const updated = categoryProducts.filter(
-      (cp) => !(cp.productId === productId && cp.categoryId === categoryId)
+    setCategoryProductsState((prev) =>
+      prev.filter(
+        (cp) => !(String(cp.productId).trim() === String(productId).trim() && cp.categoryId === categoryId)
+      )
     );
-    setCategoryProductsState(updated);
 
     if (supabase && isSupabaseConfigured()) {
       try {
-        await supabase.from("category_products").delete().match({ category_id: categoryId, product_id: productId });
+        const { error } = await supabase
+          .from("category_products")
+          .delete()
+          .match({ category_id: categoryId, product_id: productId });
+        if (error) {
+          console.error("Failed to remove product from category in Supabase", error);
+        }
       } catch (err) {
         console.error("Failed to remove product from category in Supabase", err);
       }
@@ -1209,6 +1314,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         removeProductFromCategory,
         moveCategoryProductOrder,
         updateCategoryProductOrder,
+        saveCategoryProducts,
         exportCategoryProductsJSON,
         importCategoryProductsJSON,
         getProductById,

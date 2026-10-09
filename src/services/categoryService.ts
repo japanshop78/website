@@ -154,17 +154,23 @@ export const categoryService = {
       const targetId = categoryId.trim().toLowerCase();
       const targetNum = normalizeId(categoryId);
 
-      const matchedProductIds = new Set(
-        mappings
-          .filter(
-            (cp) =>
-              cp.categoryId.toLowerCase() === targetId ||
-              normalizeId(cp.categoryId) === targetNum
-          )
-          .map((cp) => cp.productId)
-      );
+      const matchedMappings = mappings
+        .filter(
+          (cp) =>
+            cp.categoryId.toLowerCase() === targetId ||
+            normalizeId(cp.categoryId) === targetNum
+        )
+        .sort((a, b) => (a.order ?? 999) - (b.order ?? 999));
 
-      return products.filter((product) => matchedProductIds.has(product.id));
+      const productMap = new Map(products.map((p) => [String(p.id).trim(), p]));
+      const result: Product[] = [];
+      for (const cp of matchedMappings) {
+        const prod = productMap.get(String(cp.productId).trim());
+        if (prod && prod.visible !== false) {
+          result.push(prod);
+        }
+      }
+      return result;
     } catch (err) {
       console.error(`[categoryService] Lỗi getProductsByCategoryId(${categoryId}):`, err);
       return [];
