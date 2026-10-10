@@ -16,7 +16,14 @@ import {
   ChevronLeftIcon,
   ChevronRightIcon,
   BoltIcon,
+  PhoneIcon,
 } from "@/components/icons";
+
+const HOTLINE_MARQUEE_ITEMS = [
+  { badge: "Tư vấn 24/7" },
+  { badge: "Hàng nội địa Nhật 100%" },
+  { badge: "Giao hàng toàn quốc" },
+];
 
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
@@ -198,7 +205,7 @@ export default function DiscountedProductsSection() {
   const activeDotIndex = ((currentIndex % listLen) + listLen) % listLen;
 
   return (
-    <section id="discount-section" className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 py-12 sm:py-16 text-white relative overflow-hidden shadow-inner">
+    <section id="discount-section" className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 pt-10 sm:pt-14 pb-0 text-white relative overflow-hidden shadow-inner">
       {/* Ambient Background Glow Orbs */}
       <div className="absolute -top-32 -left-32 w-96 h-96 bg-amber-400/20 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute -bottom-32 -right-32 w-96 h-96 bg-rose-400/25 rounded-full blur-3xl pointer-events-none" />
@@ -541,6 +548,52 @@ export default function DiscountedProductsSection() {
                 }`}
                 aria-label={`Chuyển đến sản phẩm ${i + 1}`}
               />
+            ))}
+          </div>
+        </div>
+      </div>
+
+      {/* Seamless Scrolling Hotline Marquee */}
+      <div className="mt-8 backdrop-blur-xs py-2.5 sm:py-3 overflow-hidden select-none relative z-10">
+        <div className="animate-marquee flex items-center whitespace-nowrap">
+          {/* Instance 1 */}
+          <div className="flex items-center gap-30 sm:gap-60 shrink-0 pr-30 sm:pr-60">
+            {[...HOTLINE_MARQUEE_ITEMS, ...HOTLINE_MARQUEE_ITEMS].map((item, idx) => (
+              <span key={`hl-1-${idx}`} className="flex items-center gap-30 sm:gap-60">
+                <a
+                  href="tel:0902493895"
+                  className="inline-flex items-center gap-2.5 text-lg sm:text-xl font-bold uppercase tracking-wide text-white hover:text-amber-200 transition-colors cursor-pointer group"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white shadow-xs group-hover:bg-amber-400 group-hover:text-zinc-950 transition-all">
+                    <PhoneIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span>
+                    Hotline: <strong className="text-amber-200 font-extrabold tracking-wider">0902 493 895</strong>
+                  </span>
+                </a>
+                <span className="text-white/35 text-sm font-normal">✦</span>
+              </span>
+            ))}
+          </div>
+
+          {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
+          <div className="flex items-center gap-30 sm:gap-60 shrink-0 pr-30 sm:pr-60" aria-hidden="true">
+            {[...HOTLINE_MARQUEE_ITEMS, ...HOTLINE_MARQUEE_ITEMS].map((item, idx) => (
+              <span key={`hl-2-${idx}`} className="flex items-center gap-30 sm:gap-60">
+                <a
+                  href="tel:0902493895"
+                  tabIndex={-1}
+                  className="inline-flex items-center gap-2.5 text-lg sm:text-xl font-bold uppercase tracking-wide text-white hover:text-amber-200 transition-colors cursor-pointer group"
+                >
+                  <span className="flex h-6 w-6 items-center justify-center rounded-full bg-white/20 text-white shadow-xs group-hover:bg-amber-400 group-hover:text-zinc-950 transition-all">
+                    <PhoneIcon className="h-3.5 w-3.5" />
+                  </span>
+                  <span>
+                    Hotline: <strong className="text-amber-200 font-extrabold tracking-wider">0902 493 895</strong>
+                  </span>
+                </a>
+                <span className="text-white/35 text-sm font-normal">✦</span>
+              </span>
             ))}
           </div>
         </div>
