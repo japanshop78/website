@@ -11,7 +11,7 @@ import StarIcon from "@/components/icons/StarIcon";
 import PlusIcon from "@/components/icons/PlusIcon";
 import CloseIcon from "@/components/icons/CloseIcon";
 
-const MAX_FEATURED_SLOTS = 10;
+const DEFAULT_FEATURED_SLOTS = 20;
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -36,15 +36,31 @@ export default function FeaturedManagement() {
     getCategoryIdByProductId,
     updateProduct,
     setBannerProducts,
+    featuredBannerLimit,
+    updateFeaturedBannerLimit,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [previewMode, setPreviewMode] = useState<"table" | "preview">("table");
 
-  // Local working state for the 10 slots (index 0 to 9)
+  // Số lượng ô banner có thể tùy chỉnh (lấy từ Supabase settings hoặc mặc định 20)
+  const [slotCount, setSlotCount] = useState<number>(featuredBannerLimit || DEFAULT_FEATURED_SLOTS);
+  const [slotInputVal, setSlotInputVal] = useState<string>(String(featuredBannerLimit || DEFAULT_FEATURED_SLOTS));
+  // Chế độ hiển thị Cột 2: "grid" (Lưới ô) hoặc "list" (Danh sách Reorder với nút ⬆⬇ và handle kéo thả ⠿)
+  const [column2View, setColumn2View] = useState<"grid" | "list">("grid");
+
+  // Đồng bộ slotCount khi featuredBannerLimit từ Supabase load về
+  useEffect(() => {
+    if (featuredBannerLimit && featuredBannerLimit !== slotCount) {
+      setSlotCount(featuredBannerLimit);
+      setSlotInputVal(String(featuredBannerLimit));
+    }
+  }, [featuredBannerLimit]);
+
+  // Local working state for the slots (index 0 to slotCount - 1)
   const [localSlots, setLocalSlots] = useState<(Product | null)[]>(() =>
-    Array(MAX_FEATURED_SLOTS).fill(null)
+    Array(DEFAULT_FEATURED_SLOTS).fill(null)
   );
 
   // Drag state
@@ -55,16 +71,56 @@ export default function FeaturedManagement() {
 
   // Initialize localSlots from saved context on mount or when context changes
   useEffect(() => {
-    const featured = getProductsByBanner("featured", MAX_FEATURED_SLOTS);
-    const initial: (Product | null)[] = Array(MAX_FEATURED_SLOTS).fill(null);
+    const featured = getProductsByBanner("featured", slotCount);
+    const initial: (Product | null)[] = Array(slotCount).fill(null);
     featured.forEach((p, idx) => {
-      if (idx < MAX_FEATURED_SLOTS) {
+      if (idx < slotCount) {
         initial[idx] = p;
       }
     });
     setLocalSlots(initial);
     setIsSaved(true);
-  }, [getProductsByBanner]);
+  }, [getProductsByBanner, slotCount]);
+
+  // Handle changing slot count (min 5, max 200) và lưu vào Supabase settings
+  const handleSlotCountChange = async (newCount: number) => {
+    const clamped = Math.min(200, Math.max(5, newCount));
+    setSlotCount(clamped);
+    setSlotInputVal(String(clamped));
+    setLocalSlots((prev) => {
+      if (clamped === prev.length) return prev;
+      if (clamped > prev.length) {
+        return [...prev, ...Array(clamped - prev.length).fill(null)];
+      }
+      return prev.slice(0, clamped);
+    });
+    setIsSaved(false);
+    await updateFeaturedBannerLimit(clamped);
+  };
+
+  const handleCommitSlotInput = () => {
+    const parsed = parseInt(slotInputVal, 10);
+    if (!isNaN(parsed)) {
+      handleSlotCountChange(parsed);
+    } else {
+      setSlotInputVal(String(slotCount));
+    }
+  };
+
+  // Move product up or down by 1 position (for Reorder list view)
+  const handleMoveSlot = (slotIndex: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? slotIndex - 1 : slotIndex + 1;
+    if (targetIndex < 0 || targetIndex >= slotCount) return;
+
+    setLocalSlots((prev) => {
+      const next = [...prev];
+      const temp = next[slotIndex];
+      next[slotIndex] = next[targetIndex];
+      next[targetIndex] = temp;
+      return next;
+    });
+    setIsSaved(false);
+  };
 
   // Set of product IDs currently placed in the 10 slots
   const activeSlotProductIds = useMemo(() => {
@@ -201,10 +257,10 @@ export default function FeaturedManagement() {
       .filter((_, idx) => idx !== slotIndex)
       .filter((p): p is Product => p !== null);
 
-    // Reconstruct the 10 slots with all remaining products collapsed to the front
-    const nextSlots: (Product | null)[] = Array(MAX_FEATURED_SLOTS).fill(null);
+    // Reconstruct the slots with all remaining products collapsed to the front
+    const nextSlots: (Product | null)[] = Array(slotCount).fill(null);
     remainingProducts.forEach((p, idx) => {
-      if (idx < MAX_FEATURED_SLOTS) {
+      if (idx < slotCount) {
         nextSlots[idx] = p;
       }
     });
@@ -226,7 +282,7 @@ export default function FeaturedManagement() {
     const firstEmptyIdx = nextSlots.findIndex((p) => p === null);
     if (firstEmptyIdx === -1) {
       alert(
-        `Đã đầy 10/10 ô sản phẩm bán chạy! Bạn có thể kéo thả vào ô muốn thay thế.`
+        `Đã đầy ${slotCount}/${slotCount} ô sản phẩm bán chạy! Bạn có thể kéo thả vào ô muốn thay thế.`
       );
       return;
     }
@@ -262,10 +318,10 @@ export default function FeaturedManagement() {
         "Hủy toàn bộ thay đổi chưa lưu và quay lại cấu hình hiện tại?"
       )
     ) {
-      const featured = getProductsByBanner("featured", MAX_FEATURED_SLOTS);
-      const initial: (Product | null)[] = Array(MAX_FEATURED_SLOTS).fill(null);
+      const featured = getProductsByBanner("featured", slotCount);
+      const initial: (Product | null)[] = Array(slotCount).fill(null);
       featured.forEach((p, idx) => {
-        if (idx < MAX_FEATURED_SLOTS) {
+        if (idx < slotCount) {
           initial[idx] = p;
         }
       });
@@ -280,13 +336,13 @@ export default function FeaturedManagement() {
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <div className="inline-flex items-center gap-1.5 rounded-full bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800/60 px-3 py-1 text-xs font-bold text-amber-600 dark:text-amber-400 mb-2">
-            <span>Kéo & Thả Sản Phẩm • 10 Vị Trí</span>
+            <span>Kéo & Thả Sản Phẩm • {slotCount} Vị Trí</span>
           </div>
           <h2 className="text-2xl font-black tracking-tight text-zinc-900 dark:text-white sm:text-3xl">
             Quản Lý Sản Phẩm Bán Chạy
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Kéo thả sản phẩm từ Cột 1 sang 10 ô vị trí ở Cột 2 (hoặc kéo đổi vị trí giữa các ô)
+            Kéo thả sản phẩm từ Cột 1 sang các ô vị trí ở Cột 2 (hoặc sắp xếp nhanh với Danh sách Reorder)
           </p>
         </div>
 
@@ -331,7 +387,7 @@ export default function FeaturedManagement() {
           <div className="flex items-center gap-2.5">
             <span className="text-xl">✓</span>
             <span className="text-sm font-bold">
-              Đã lưu thành công thứ tự và danh sách 10 ô sản phẩm bán chạy!
+              Đã lưu thành công thứ tự và danh sách {slotCount} ô sản phẩm bán chạy!
             </span>
           </div>
           <button
@@ -344,23 +400,62 @@ export default function FeaturedManagement() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
-        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
-          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
-            Ô đã kích hoạt
-          </span>
-          <p className="mt-2 text-3xl font-black text-amber-500">
-            {activeCount}{" "}
-            <span className="text-sm font-normal text-zinc-400">/ {MAX_FEATURED_SLOTS}</span>
-          </p>
-        </div>
-
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
           <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Top #1 Bán chạy
           </span>
           <p className="mt-2 text-sm font-bold text-zinc-900 dark:text-white line-clamp-2">
             {localSlots[0]?.name || "(Chưa gán vị trí #1)"}
+          </p>
+        </div>
+
+        {/* Ô MỚI: Số lượng sản phẩm (Input tùy chỉnh, mặc định 20) trước Ô đã kích hoạt */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="featured-slot-count-input" className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Số lượng sản phẩm
+              </label>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  id="featured-slot-count-input"
+                  type="number"
+                  min={5}
+                  max={200}
+                  value={slotInputVal}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSlotInputVal(val);
+                    const parsed = parseInt(val, 10);
+                    if (!isNaN(parsed) && parsed >= 5 && parsed <= 200) {
+                      handleSlotCountChange(parsed);
+                    }
+                  }}
+                  onBlur={handleCommitSlotInput}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCommitSlotInput();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-1.5 text-2xl font-black text-amber-500 focus:outline-none focus:ring-2 focus:ring-amber-500/30 focus:border-amber-500 transition-all text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="20"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
+          <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+            Ô đã kích hoạt
+          </span>
+          <p className="mt-2 text-3xl font-black text-amber-500">
+            {activeCount}{" "}
+            <span className="text-sm font-normal text-zinc-400">/ {slotCount}</span>
           </p>
         </div>
 
@@ -562,86 +657,249 @@ export default function FeaturedManagement() {
             </div>
           </div>
 
-          {/* CỘT 2: Danh sách thứ tự 10 Ô sản phẩm hiển thị theo 2 hàng (Mỗi hàng 5 ô) */}
+          {/* CỘT 2: Danh sách thứ tự Ô sản phẩm hiển thị */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <span>🎯 Cột 2: Thứ Tự 10 Ô Hiển Thị</span>
-                <span className="rounded-full bg-amber-100 dark:bg-amber-950 text-amber-600 dark:text-amber-400 px-2.5 py-0.5 text-xs font-black">
-                  {activeCount}/10 ô
-                </span>
-              </h3>
-              <span className="text-[11px] text-zinc-400 italic">
-                (Kéo đổi vị trí giữa các ô)
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+              <div className="flex items-center gap-2">
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <span>🎯 Cột 2: Thứ Tự Hiển Thị Bán Chạy</span>
+                </h3>
+              </div>
+
+              {/* Chuyển đổi View: Lưới ô vs Danh sách Reorder */}
+              <div className="flex items-center gap-2">
+                <div className="flex items-center p-0.5 rounded-xl bg-zinc-100 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700">
+                  <button
+                    type="button"
+                    onClick={() => setColumn2View("grid")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                      column2View === "grid"
+                        ? "bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <span>📱 Lưới ô</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumn2View("list")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                      column2View === "list"
+                        ? "bg-white dark:bg-zinc-900 text-amber-600 dark:text-amber-400 shadow-xs"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <span>📋 DS Reorder (▲▼)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bộ điều khiển số lượng ô Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-800 gap-2 text-xs">
+              <span className="font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <span>⚙️ Số lượng ô banner hiển thị:</span>
               </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[10, 20, 30].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handleSlotCountChange(num)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                      slotCount === num
+                        ? "bg-amber-500 text-white shadow-xs scale-105"
+                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {num} ô {num === 20 && "(Mặc định)"}
+                  </button>
+                ))}
+              </div>
             </div>
 
             <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5 shadow-sm space-y-5">
-              {/* HÀNG 1: Vị trí #1 - #5 */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    Hàng 1 (Vị trí #1 ➔ #5)
-                  </span>
-                  <span className="text-[11px] text-zinc-400">5 ô hàng đầu</span>
-                </div>
+              {column2View === "grid" ? (
+                /* CHẾ ĐỘ 1: LƯỚI Ô ĐỘNG (Dynamic Rows x 5 Cột) */
+                <div className="space-y-5">
+                  {Array.from({ length: Math.ceil(slotCount / 5) }).map((_, rowIdx) => {
+                    const start = rowIdx * 5;
+                    const end = Math.min(start + 5, slotCount);
+                    const rowSlots = localSlots.slice(start, end);
 
-                <div className="grid grid-cols-5 gap-2.5">
-                  {localSlots.slice(0, 5).map((p, i) => {
-                    const slotIndex = i;
-                    const slotNum = i + 1;
-                    const isDragOver = dragOverIndex === slotIndex;
+                    return (
+                      <div key={rowIdx}>
+                        <div className="flex items-center justify-between mb-2.5 px-1">
+                          <span className="text-xs font-black uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                            Hàng {rowIdx + 1} (Vị trí #{start + 1} ➔ #{end})
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            {rowIdx === 0 ? "5 ô đầu (Ưu tiên / LCP)" : `${end - start} ô tiếp theo`}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2.5">
+                          {rowSlots.map((p, i) => {
+                            const slotIndex = start + i;
+                            const slotNum = slotIndex + 1;
+                            const isDragOver = dragOverIndex === slotIndex;
+
+                            return (
+                              <div
+                                key={slotIndex}
+                                onDragOver={(e) => handleDragOver(e, slotIndex)}
+                                onDragLeave={(e) => handleDragLeave(e, slotIndex)}
+                                onDrop={(e) => handleDrop(e, slotIndex)}
+                                draggable={Boolean(p)}
+                                onDragStart={(e) => {
+                                  if (p) handleDragStartFromSlot(e, slotIndex, p);
+                                }}
+                                onDragEnd={handleDragEnd}
+                                className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[190px] ${
+                                  isDragOver
+                                    ? "border-amber-500 ring-4 ring-amber-500/20 bg-amber-50/60 dark:bg-amber-950/40 scale-105 z-10"
+                                    : p
+                                    ? "border-amber-300 dark:border-amber-700/60 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
+                                    : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-amber-400"
+                                }`}
+                              >
+                                {/* Slot Header Badge */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span
+                                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow-2xs ${
+                                      slotNum === 1
+                                        ? "bg-amber-500 text-white"
+                                        : slotNum === 2
+                                        ? "bg-zinc-400 dark:bg-zinc-600 text-white"
+                                        : slotNum === 3
+                                        ? "bg-amber-700 text-white"
+                                        : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                    }`}
+                                  >
+                                    #{slotNum}
+                                  </span>
+
+                                  {p && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveSlot(slotIndex)}
+                                      className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
+                                      title="Gỡ khỏi ô này"
+                                    >
+                                      <CloseIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {p ? (
+                                  <div className="flex flex-col items-center flex-1 justify-between">
+                                    <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
+                                      {p.images?.[0] ? (
+                                        <Image
+                                          src={getAssetPath(p.images[0])}
+                                          alt={p.name}
+                                          fill
+                                          className="object-contain pointer-events-none"
+                                        />
+                                      ) : (
+                                        <div className="h-full w-full bg-zinc-200 dark:bg-zinc-700 rounded-lg" />
+                                      )}
+                                    </div>
+
+                                    <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                                      {p.name}
+                                    </p>
+
+                                    <div className="w-full">
+                                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                                        <span className="text-[9px] font-black text-amber-600 dark:text-amber-400 block truncate">
+                                          {formatPrice(p.price)}
+                                        </span>
+                                        {p.oldPrice && p.oldPrice > p.price && (
+                                          <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
+                                            -{calcDiscount(p.price, p.oldPrice)}%
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
+                                      <PlusIcon className="h-3.5 w-3.5" />
+                                    </div>
+                                    <span className="text-[10px] font-semibold">
+                                      Ô #{slotNum} trống
+                                    </span>
+                                    <span className="text-[8px] text-zinc-400 mt-0.5">
+                                      Thả vào đây
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* CHẾ ĐỘ 2: DANH SÁCH SẮP XẾP NHANH (REORDER LIST VIEW) */
+                <div className="space-y-2 max-h-[680px] overflow-y-auto pr-1">
+                  <div className="flex items-center justify-between px-2 py-1 text-[11px] text-zinc-400 bg-zinc-50 dark:bg-zinc-800/30 rounded-xl">
+                    <span>Thứ tự & Sản phẩm ({activeCount}/{slotCount} đã gán)</span>
+                    <span>Hành động (▲▼ để đổi vị trí)</span>
+                  </div>
+
+                  {localSlots.map((p, idx) => {
+                    const slotNum = idx + 1;
+                    const isDragOver = dragOverIndex === idx;
 
                     return (
                       <div
-                        key={slotIndex}
-                        onDragOver={(e) => handleDragOver(e, slotIndex)}
-                        onDragLeave={(e) => handleDragLeave(e, slotIndex)}
-                        onDrop={(e) => handleDrop(e, slotIndex)}
+                        key={idx}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDragLeave={(e) => handleDragLeave(e, idx)}
+                        onDrop={(e) => handleDrop(e, idx)}
                         draggable={Boolean(p)}
                         onDragStart={(e) => {
-                          if (p) handleDragStartFromSlot(e, slotIndex, p);
+                          if (p) handleDragStartFromSlot(e, idx, p);
                         }}
                         onDragEnd={handleDragEnd}
-                        className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[190px] ${
+                        className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-all select-none ${
                           isDragOver
-                            ? "border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-950/40 scale-105 z-10"
+                            ? "border-amber-500 ring-4 ring-amber-500/20 bg-amber-50/70 dark:bg-amber-950/40 scale-[1.01]"
                             : p
-                            ? "border-amber-300 dark:border-amber-700/60 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
-                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-indigo-400"
+                            ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-amber-300 dark:hover:border-amber-700 shadow-2xs cursor-grab active:cursor-grabbing"
+                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/10 text-zinc-400"
                         }`}
                       >
-                        {/* Slot Header Badge */}
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow-2xs ${
+                            className="cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg px-1 select-none font-bold"
+                            title="Kéo thả để đổi thứ tự"
+                          >
+                            ⠿
+                          </span>
+                          <span
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-xs font-black shadow-2xs ${
                               slotNum === 1
                                 ? "bg-amber-500 text-white"
                                 : slotNum === 2
                                 ? "bg-zinc-400 dark:bg-zinc-600 text-white"
                                 : slotNum === 3
                                 ? "bg-amber-700 text-white"
-                                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
                             }`}
                           >
                             #{slotNum}
                           </span>
-
-                          {p && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSlot(slotIndex)}
-                              className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
-                              title="Gỡ khỏi ô này"
-                            >
-                              <CloseIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
                         </div>
 
                         {p ? (
-                          <div className="flex flex-col items-center flex-1 justify-between">
-                            <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
+                          <>
+                            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5">
                               {p.images?.[0] ? (
                                 <Image
                                   src={getAssetPath(p.images[0])}
@@ -654,33 +912,59 @@ export default function FeaturedManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
-                              {p.name}
-                            </p>
-
-                            <div className="w-full">
-                              <div className="flex items-center justify-center gap-1 flex-wrap">
-                                <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 block truncate">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold uppercase text-zinc-900 dark:text-white truncate">
+                                {p.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs font-black text-amber-600 dark:text-amber-400">
                                   {formatPrice(p.price)}
                                 </span>
                                 {p.oldPrice && p.oldPrice > p.price && (
-                                  <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
-                                    -{calcDiscount(p.price, p.oldPrice)}%
+                                  <span className="text-[10px] text-zinc-400 line-through">
+                                    {formatPrice(p.oldPrice)}
                                   </span>
                                 )}
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
-                              <PlusIcon className="h-3.5 w-3.5" />
+
+                            {/* Nút di chuyển Lên/Xuống & Gỡ */}
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveSlot(idx, "up")}
+                                disabled={idx === 0}
+                                className="h-7 w-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-zinc-700 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                                title="Đẩy lên vị trí trước"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveSlot(idx, "down")}
+                                disabled={idx === slotCount - 1}
+                                className="h-7 w-7 rounded-lg bg-zinc-100 dark:bg-zinc-800 hover:bg-zinc-200 dark:hover:bg-zinc-700 disabled:opacity-30 disabled:cursor-not-allowed text-xs font-bold text-zinc-700 dark:text-zinc-200 flex items-center justify-center transition-colors cursor-pointer"
+                                title="Đẩy xuống vị trí sau"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSlot(idx)}
+                                className="h-7 w-7 rounded-lg bg-rose-50 dark:bg-rose-950/50 hover:bg-rose-100 dark:hover:bg-rose-900/50 text-rose-600 dark:text-rose-400 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                                title="Gỡ sản phẩm khỏi ô này"
+                              >
+                                <CloseIcon className="h-3.5 w-3.5" />
+                              </button>
                             </div>
-                            <span className="text-[10px] font-semibold">
-                              Ô #{slotNum} trống
+                          </>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-between text-zinc-400 py-1">
+                            <span className="text-xs italic">
+                              Ô #{slotNum} trống - Kéo thả sản phẩm vào đây
                             </span>
-                            <span className="text-[8px] text-zinc-400 mt-0.5">
-                              Thả vào đây
+                            <span className="text-[11px] text-zinc-400 font-mono">
+                              [Chưa gán]
                             </span>
                           </div>
                         )}
@@ -688,110 +972,7 @@ export default function FeaturedManagement() {
                     );
                   })}
                 </div>
-              </div>
-
-              {/* HÀNG 2: Vị trí #6 - #10 */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-indigo-600 dark:text-indigo-400">
-                    Hàng 2 (Vị trí #6 ➔ #10)
-                  </span>
-                  <span className="text-[11px] text-zinc-400">5 ô hàng dưới</span>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2.5">
-                  {localSlots.slice(5, 10).map((p, i) => {
-                    const slotIndex = i + 5;
-                    const slotNum = slotIndex + 1;
-                    const isDragOver = dragOverIndex === slotIndex;
-
-                    return (
-                      <div
-                        key={slotIndex}
-                        onDragOver={(e) => handleDragOver(e, slotIndex)}
-                        onDragLeave={(e) => handleDragLeave(e, slotIndex)}
-                        onDrop={(e) => handleDrop(e, slotIndex)}
-                        draggable={Boolean(p)}
-                        onDragStart={(e) => {
-                          if (p) handleDragStartFromSlot(e, slotIndex, p);
-                        }}
-                        onDragEnd={handleDragEnd}
-                        className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[190px] ${
-                          isDragOver
-                            ? "border-indigo-500 ring-4 ring-indigo-500/20 bg-indigo-50/60 dark:bg-indigo-950/40 scale-105 z-10"
-                            : p
-                            ? "border-amber-300 dark:border-amber-700/60 bg-amber-50/20 dark:bg-amber-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
-                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-indigo-400"
-                        }`}
-                      >
-                        {/* Slot Header Badge */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                            #{slotNum}
-                          </span>
-
-                          {p && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSlot(slotIndex)}
-                              className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
-                              title="Gỡ khỏi ô này"
-                            >
-                              <CloseIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-
-                        {p ? (
-                          <div className="flex flex-col items-center flex-1 justify-between">
-                            <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
-                              {p.images?.[0] ? (
-                                <Image
-                                  src={getAssetPath(p.images[0])}
-                                  alt={p.name}
-                                  fill
-                                  className="object-contain pointer-events-none"
-                                />
-                              ) : (
-                                <div className="h-full w-full bg-zinc-200 dark:bg-zinc-700 rounded-lg" />
-                              )}
-                            </div>
-
-                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
-                              {p.name}
-                            </p>
-
-                            <div className="w-full">
-                              <div className="flex items-center justify-center gap-1 flex-wrap">
-                                 <span className="text-[9px] font-black text-indigo-600 dark:text-indigo-400 block truncate">
-                                   {formatPrice(p.price)}
-                                 </span>
-                                 {p.oldPrice && p.oldPrice > p.price && (
-                                   <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
-                                     -{calcDiscount(p.price, p.oldPrice)}%
-                                   </span>
-                                 )}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
-                              <PlusIcon className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="text-[10px] font-semibold">
-                              Ô #{slotNum} trống
-                            </span>
-                            <span className="text-[8px] text-zinc-400 mt-0.5">
-                              Thả vào đây
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
 
               {/* Bottom Quick Save Footer inside Column 2 */}
               <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
@@ -807,7 +988,7 @@ export default function FeaturedManagement() {
                       : "bg-zinc-700 hover:bg-zinc-600"
                   }`}
                 >
-                  💾 Lưu 10 vị trí
+                  💾 Lưu {slotCount} vị trí
                 </button>
               </div>
             </div>
@@ -822,7 +1003,7 @@ export default function FeaturedManagement() {
                 Xem trước giao diện &quot;Sản Phẩm Bán Chạy&quot;
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Giao diện thực tế hiển thị tối đa {MAX_FEATURED_SLOTS} sản phẩm trên trang chủ
+                Giao diện thực tế hiển thị tối đa {slotCount} sản phẩm trên trang chủ
               </p>
             </div>
             <span className="rounded-full bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border border-emerald-500/20 px-3 py-1 text-xs font-bold">

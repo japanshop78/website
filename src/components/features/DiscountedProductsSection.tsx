@@ -38,14 +38,23 @@ function getTimeUntilTarget(targetDateStr?: string) {
 const formatTime = (num: number) => String(num).padStart(2, "0");
 
 export default function DiscountedProductsSection() {
-  const { getProductsByBanner, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
+  const {
+    getProductsByBanner,
+    getCategoryIdByProductId,
+    categories,
+    promotion,
+    isPromotionActive,
+    discountBannerLimit = 20,
+  } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
-  // Countdown timer state
-  const [timeLeft, setTimeLeft] = useState(() => getTimeUntilTarget(promotion?.endDate));
+  const [isMounted, setIsMounted] = useState(false);
+  // Countdown timer state (stable initial value for SSR to prevent hydration mismatch)
+  const [timeLeft, setTimeLeft] = useState({ days: 0, hours: 0, minutes: 0, seconds: 0 });
 
   useEffect(() => {
+    setIsMounted(true);
     setTimeLeft(getTimeUntilTarget(promotion?.endDate));
     const timer = setInterval(() => {
       setTimeLeft(getTimeUntilTarget(promotion?.endDate));
@@ -54,7 +63,7 @@ export default function DiscountedProductsSection() {
   }, [promotion?.endDate]);
 
   // Filter products by banner "discount" (or "Sản phẩm giảm giá")
-  const discountedProducts = getProductsByBanner("discount", 15);
+  const discountedProducts = getProductsByBanner("discount", discountBannerLimit);
 
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(true);
@@ -132,13 +141,13 @@ export default function DiscountedProductsSection() {
     });
   }, [listLen]);
 
-  // Auto-play animation running from right to left every 3 seconds (pauses when tab hidden)
+  // Auto-play animation running from right to left every 2 seconds (pauses when tab hidden)
   useEffect(() => {
     if (isPaused || listLen === 0) return;
     const interval = setInterval(() => {
       if (typeof document !== "undefined" && document.hidden) return;
       handleNext();
-    }, 3000);
+    }, 2000);
     return () => clearInterval(interval);
   }, [isPaused, listLen, handleNext]);
 
@@ -209,26 +218,38 @@ export default function DiscountedProductsSection() {
                 <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
                 <span className="hidden sm:inline">Kết thúc sau:</span>
               </span>
-              <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white">
-                {timeLeft.days > 0 && (
+              <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white" suppressHydrationWarning>
+                {isMounted ? (
                   <>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                      {timeLeft.days}N
+                    {timeLeft.days > 0 && (
+                      <>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                          {timeLeft.days}N
+                        </span>
+                        <span className="text-amber-300 font-bold">:</span>
+                      </>
+                    )}
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                      {formatTime(timeLeft.hours)}
                     </span>
                     <span className="text-amber-300 font-bold">:</span>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                      {formatTime(timeLeft.minutes)}
+                    </span>
+                    <span className="text-amber-300 font-bold">:</span>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                      {formatTime(timeLeft.seconds)}
+                    </span>
+                  </>
+                ) : (
+                  <>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                    <span className="text-amber-300 font-bold">:</span>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                    <span className="text-amber-300 font-bold">:</span>
+                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
                   </>
                 )}
-                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                  {formatTime(timeLeft.hours)}
-                </span>
-                <span className="text-amber-300 font-bold">:</span>
-                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                  {formatTime(timeLeft.minutes)}
-                </span>
-                <span className="text-amber-300 font-bold">:</span>
-                <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">
-                  {formatTime(timeLeft.seconds)}
-                </span>
               </div>
             </div>
 
@@ -336,8 +357,6 @@ export default function DiscountedProductsSection() {
         {/* Carousel Slider Container */}
         <div
           className="relative group/slider"
-          onMouseEnter={() => setIsPaused(true)}
-          onMouseLeave={() => setIsPaused(false)}
           onTouchStart={handleTouchStart}
           onTouchEnd={handleTouchEnd}
         >
@@ -386,6 +405,8 @@ export default function DiscountedProductsSection() {
                   savingsAmount,
                 } = getProductPricing(product, promotion, isPromotionActive);
 
+                const isAboveTheFold = (idx >= listLen && idx < listLen + 5) || idx < 5;
+
                 return (
                   <div
                     key={`${product.id}-${idx}`}
@@ -404,8 +425,8 @@ export default function DiscountedProductsSection() {
                               src={getAssetPath(primaryImage)}
                               alt={product.name}
                               fill
-                              priority={idx < 5}
-                              loading={idx < 5 ? "eager" : "lazy"}
+                              priority={isAboveTheFold}
+                              loading={isAboveTheFold ? "eager" : "lazy"}
                               className="object-contain p-1 group-hover:scale-108 transition-transform duration-500"
                               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                             />

@@ -15,11 +15,11 @@ import { StarIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export default function FeaturedProductsSection() {
-  const { getFeaturedProducts, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
+  const { getFeaturedProducts, getCategoryIdByProductId, categories, promotion, isPromotionActive, featuredBannerLimit } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
-  const featuredProducts = getFeaturedProducts(15);
+  const featuredProducts = getFeaturedProducts(featuredBannerLimit || 20);
 
   const [itemsPerView, setItemsPerView] = useState(5);
   const [isPaused, setIsPaused] = useState(false);
@@ -235,6 +235,8 @@ export default function FeaturedProductsSection() {
                   savingsAmount,
                 } = getProductPricing(product, promotion, isPromotionActive);
 
+                const isAboveTheFold = (idx >= listLen && idx < listLen + 5) || idx < 5;
+
                 return (
                   <div
                     key={`${product.id}-${idx}`}
@@ -250,8 +252,8 @@ export default function FeaturedProductsSection() {
                               src={getAssetPath(primaryImage)}
                               alt={product.name}
                               fill
-                              priority={idx < 5}
-                              loading={idx < 5 ? "eager" : "lazy"}
+                              priority={isAboveTheFold}
+                              loading={isAboveTheFold ? "eager" : "lazy"}
                               className="object-contain p-1 group-hover:scale-105 transition-transform duration-500"
                               sizes="(max-width: 640px) 50vw, (max-width: 1024px) 33vw, 20vw"
                             />

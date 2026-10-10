@@ -1,36 +1,11 @@
-import { createClient, SupabaseClient } from "@supabase/supabase-js";
+import { SupabaseClient } from "@supabase/supabase-js";
+import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Product } from "@/data/products";
 import { Category } from "@/data/categories";
 import { CategoryProductMapping } from "@/data/categoryProducts";
 import { ProductOrder } from "@/data/order";
 
-// Supabase Connection Configuration
-const SUPABASE_URL = process.env.NEXT_PUBLIC_SUPABASE_URL || "";
-const SUPABASE_ANON_KEY = process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || "";
-
-/**
- * Check whether Supabase environment variables are properly defined
- */
-export const isSupabaseConfigured = (): boolean => {
-  return Boolean(
-    SUPABASE_URL &&
-    SUPABASE_ANON_KEY &&
-    SUPABASE_URL.startsWith("https://") &&
-    SUPABASE_ANON_KEY.length > 20
-  );
-};
-
-/**
- * Supabase client instance
- */
-export const supabase: SupabaseClient | null = isSupabaseConfigured()
-  ? createClient(SUPABASE_URL, SUPABASE_ANON_KEY, {
-      auth: {
-        persistSession: true,
-        autoRefreshToken: true,
-      },
-    })
-  : null;
+export { supabase, isSupabaseConfigured };
 
 // ============================================================================
 // DATABASE TYPES & MAPPING HELPERS
@@ -604,6 +579,51 @@ export const supabaseService = {
       const msg = err instanceof Error ? err.message : "Lỗi khi đồng bộ";
       console.error("[supabaseService] seedAllData failed:", msg);
       return { success: false, message: `Lỗi đồng bộ: ${msg}` };
+    }
+  },
+
+  // --------------------------------------------------------------------------
+  // SETTINGS (KEY-VALUE CONFIGURATION)
+  // --------------------------------------------------------------------------
+  async getSetting(key: string, defaultValue: string = ""): Promise<string> {
+    if (!supabase) return defaultValue;
+    try {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", key)
+        .maybeSingle();
+
+      if (error) {
+        console.warn(`[supabaseService] getSetting(${key}) warning:`, error.message);
+        return defaultValue;
+      }
+      return data?.value ?? defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  },
+
+  async setSetting(key: string, value: string, description?: string): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from("settings").upsert(
+        {
+          key,
+          value,
+          description: description || undefined,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+      if (error) {
+        console.error(`[supabaseService] setSetting(${key}) error:`, error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(`[supabaseService] setSetting(${key}) error:`, err);
+      return false;
     }
   },
 };
