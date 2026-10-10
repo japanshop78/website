@@ -27,7 +27,7 @@ function useIsMounted() {
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(false);
+  const [isSearchOpen, setIsSearchOpen] = useState(true);
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
   const { categories } = useProductData();
@@ -70,7 +70,7 @@ export default function Header() {
         {/* Right side items: Search, Cart, Theme Toggle, Admin Settings & Mobile menu */}
         <div className="flex items-center gap-1 sm:gap-2">
           {/* Search Icon Button */}
-          <button
+          {/* <button
             type="button"
             onClick={() => setIsSearchOpen(!isSearchOpen)}
             className="p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
@@ -78,7 +78,7 @@ export default function Header() {
             aria-label="Tìm kiếm sản phẩm"
           >
             <SearchIcon className="h-6 w-6" />
-          </button>
+          </button> */}
 
           {/* Cart Icon Button */}
           <button
@@ -140,7 +140,8 @@ export default function Header() {
       {/* Live Search Dropdown */}
       <LiveSearchDropdown
         isOpen={isSearchOpen}
-        onClose={() => setIsSearchOpen(false)}
+        // onClose={() => setIsSearchOpen(false)}
+        onClose={() => { }}
       />
 
       {/* Mobile Menu */}
