@@ -12,7 +12,7 @@ import PlusIcon from "@/components/icons/PlusIcon";
 import CloseIcon from "@/components/icons/CloseIcon";
 import BoltIcon from "@/components/icons/BoltIcon";
 
-const MAX_DISCOUNT_SLOTS = 10;
+const DEFAULT_DISCOUNT_SLOTS = 20;
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -46,12 +46,28 @@ export default function DiscountManagement() {
     setBannerProducts,
     promotion,
     updatePromotion,
+    discountBannerLimit,
+    updateDiscountBannerLimit,
   } = useProductData();
 
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState("all");
   const [onlyDiscounted, setOnlyDiscounted] = useState(true);
   const [previewMode, setPreviewMode] = useState<"table" | "list" | "preview">("table");
+
+  // Số lượng ô banner có thể tùy chỉnh (lấy từ Supabase settings hoặc mặc định 20)
+  const [slotCount, setSlotCount] = useState<number>(discountBannerLimit || DEFAULT_DISCOUNT_SLOTS);
+  const [slotInputVal, setSlotInputVal] = useState<string>(String(discountBannerLimit || DEFAULT_DISCOUNT_SLOTS));
+  // Chế độ hiển thị Cột 2: "grid" (Lưới ô) hoặc "list" (Danh sách Reorder với nút ⬆⬇ và handle kéo thả ⠿)
+  const [column2View, setColumn2View] = useState<"grid" | "list">("grid");
+
+  // Đồng bộ slotCount khi discountBannerLimit từ Supabase load về
+  useEffect(() => {
+    if (discountBannerLimit && discountBannerLimit !== slotCount) {
+      setSlotCount(discountBannerLimit);
+      setSlotInputVal(String(discountBannerLimit));
+    }
+  }, [discountBannerLimit]);
 
   // Promotional Campaign state from Supabase
   const [promoForm, setPromoForm] = useState<PromotionCampaign>(promotion);
@@ -96,9 +112,9 @@ export default function DiscountManagement() {
     }
   };
 
-  // Local working state for the 10 slots (index 0 to 9)
+  // Local working state for slots (index 0 to slotCount - 1)
   const [localSlots, setLocalSlots] = useState<(Product | null)[]>(() =>
-    Array(MAX_DISCOUNT_SLOTS).fill(null)
+    Array(DEFAULT_DISCOUNT_SLOTS).fill(null)
   );
 
   // Drag state
@@ -110,16 +126,56 @@ export default function DiscountManagement() {
 
   // Initialize localSlots from saved context on mount or when context changes
   useEffect(() => {
-    const discountItems = getProductsByBanner("discount", MAX_DISCOUNT_SLOTS);
-    const initial: (Product | null)[] = Array(MAX_DISCOUNT_SLOTS).fill(null);
+    const discountItems = getProductsByBanner("discount", slotCount);
+    const initial: (Product | null)[] = Array(slotCount).fill(null);
     discountItems.forEach((p, idx) => {
-      if (idx < MAX_DISCOUNT_SLOTS) {
+      if (idx < slotCount) {
         initial[idx] = p;
       }
     });
     setLocalSlots(initial);
     setIsSaved(true);
-  }, [getProductsByBanner]);
+  }, [getProductsByBanner, slotCount]);
+
+  // Handle changing slot count (e.g. 10, 15, 20, 25, 30) và lưu vào Supabase settings
+  const handleSlotCountChange = async (newCount: number) => {
+    const clamped = Math.min(50, Math.max(5, newCount));
+    setSlotCount(clamped);
+    setSlotInputVal(String(clamped));
+    setLocalSlots((prev) => {
+      if (clamped === prev.length) return prev;
+      if (clamped > prev.length) {
+        return [...prev, ...Array(clamped - prev.length).fill(null)];
+      }
+      return prev.slice(0, clamped);
+    });
+    setIsSaved(false);
+    await updateDiscountBannerLimit(clamped);
+  };
+
+  const handleCommitSlotInput = () => {
+    const parsed = parseInt(slotInputVal, 10);
+    if (!isNaN(parsed)) {
+      handleSlotCountChange(parsed);
+    } else {
+      setSlotInputVal(String(slotCount));
+    }
+  };
+
+  // Move product up or down by 1 position (for Reorder list view)
+  const handleMoveSlot = (slotIndex: number, direction: "up" | "down") => {
+    const targetIndex = direction === "up" ? slotIndex - 1 : slotIndex + 1;
+    if (targetIndex < 0 || targetIndex >= slotCount) return;
+
+    setLocalSlots((prev) => {
+      const next = [...prev];
+      const temp = next[slotIndex];
+      next[slotIndex] = next[targetIndex];
+      next[targetIndex] = temp;
+      return next;
+    });
+    setIsSaved(false);
+  };
 
   // Set of product IDs currently placed in the 10 slots
   const activeSlotProductIds = useMemo(() => {
@@ -200,10 +256,10 @@ export default function DiscountManagement() {
       return (b.reviews ?? 0) - (a.reviews ?? 0);
     });
 
-    const top10 = sorted.slice(0, MAX_DISCOUNT_SLOTS);
-    const nextSlots: (Product | null)[] = Array(MAX_DISCOUNT_SLOTS).fill(null);
+    const topItems = sorted.slice(0, slotCount);
+    const nextSlots: (Product | null)[] = Array(slotCount).fill(null);
 
-    top10.forEach((p, idx) => {
+    topItems.forEach((p, idx) => {
       nextSlots[idx] = {
         ...p,
         tag: p.tag || "Ưu đãi hot",
@@ -312,9 +368,9 @@ export default function DiscountManagement() {
       .filter((_, idx) => idx !== slotIndex)
       .filter((p): p is Product => p !== null);
 
-    const nextSlots: (Product | null)[] = Array(MAX_DISCOUNT_SLOTS).fill(null);
+    const nextSlots: (Product | null)[] = Array(slotCount).fill(null);
     remainingProducts.forEach((p, idx) => {
-      if (idx < MAX_DISCOUNT_SLOTS) {
+      if (idx < slotCount) {
         nextSlots[idx] = p;
       }
     });
@@ -335,7 +391,7 @@ export default function DiscountManagement() {
     const firstEmptyIdx = nextSlots.findIndex((p) => p === null);
     if (firstEmptyIdx === -1) {
       alert(
-        `Đã đầy 10/10 ô sản phẩm ưu đãi! Bạn có thể kéo thả vào ô muốn thay thế.`
+        `Đã đầy ${slotCount}/${slotCount} ô sản phẩm ưu đãi! Bạn có thể kéo thả vào ô muốn thay thế hoặc tăng số lượng ô.`
       );
       return;
     }
@@ -371,10 +427,10 @@ export default function DiscountManagement() {
         "Hủy toàn bộ thay đổi chưa lưu và quay lại cấu hình hiện tại?"
       )
     ) {
-      const discountItems = getProductsByBanner("discount", MAX_DISCOUNT_SLOTS);
-      const initial: (Product | null)[] = Array(MAX_DISCOUNT_SLOTS).fill(null);
+      const discountItems = getProductsByBanner("discount", slotCount);
+      const initial: (Product | null)[] = Array(slotCount).fill(null);
       discountItems.forEach((p, idx) => {
-        if (idx < MAX_DISCOUNT_SLOTS) {
+        if (idx < slotCount) {
           initial[idx] = p;
         }
       });
@@ -395,7 +451,7 @@ export default function DiscountManagement() {
             Quản Lý Sản Phẩm Giảm Giá
           </h2>
           <p className="mt-1 text-sm text-zinc-500 dark:text-zinc-400">
-            Tự động lọc 10 sản phẩm có % giảm giá cao nhất hoặc chọn & kéo thả tùy chỉnh theo ý muốn
+            Tự động lọc {slotCount} sản phẩm có % giảm giá cao nhất hoặc chọn & kéo thả tùy chỉnh theo ý muốn
           </p>
         </div>
 
@@ -405,10 +461,10 @@ export default function DiscountManagement() {
             type="button"
             onClick={handleAutoFillTopDiscount}
             className="inline-flex items-center gap-1.5 rounded-xl bg-gradient-to-r from-rose-500 via-orange-500 to-amber-500 hover:from-rose-600 hover:to-amber-600 text-white px-4 py-2.5 text-xs sm:text-sm font-bold shadow-md hover:shadow-lg transition-all cursor-pointer transform hover:-translate-y-0.5 active:translate-y-0"
-            title="Tự động chọn 10 sản phẩm có mức giảm giá cao nhất vào 10 vị trí hiển thị"
+            title={`Tự động chọn ${slotCount} sản phẩm có mức giảm giá cao nhất vào các vị trí hiển thị`}
           >
             <BoltIcon className="h-4 w-4" />
-            <span>Thêm tự động (Top 10 giảm giá)</span>
+            <span>Thêm tự động (Top {slotCount} giảm giá)</span>
           </button>
 
           {!isSaved && (
@@ -466,23 +522,26 @@ export default function DiscountManagement() {
             </div>
           </div>
 
-          <div className="flex items-center gap-2">
-            <button
-              type="button"
-              onClick={handleResetPromoDefaults}
-              className="px-3 py-2 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
-            >
-              🔄 Mặc định 10/10
-            </button>
-            <button
-              type="button"
-              onClick={handleSavePromo}
-              disabled={isPromoSaving}
-              className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md hover:shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
-            >
-              {isPromoSaving ? "Đang lưu..." : "💾 Lưu ưu đãi lên Supabase"}
-            </button>
-          </div>
+          {/* Tạm thời ẩn 2 chức năng theo yêu cầu: 🔄 Mặc định 10/10 & 💾 Lưu ưu đãi lên Supabase */}
+          {false && (
+            <div className="flex items-center gap-2">
+              <button
+                type="button"
+                onClick={handleResetPromoDefaults}
+                className="px-3 py-2 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 text-zinc-600 dark:text-zinc-300 hover:bg-zinc-100 dark:hover:bg-zinc-800 transition-colors cursor-pointer"
+              >
+                🔄 Mặc định 10/10
+              </button>
+              <button
+                type="button"
+                onClick={handleSavePromo}
+                disabled={isPromoSaving}
+                className="px-4 py-2 rounded-xl text-xs font-bold bg-rose-600 hover:bg-rose-700 text-white shadow-md hover:shadow-rose-600/30 transition-all cursor-pointer flex items-center gap-1.5"
+              >
+                {isPromoSaving ? "Đang lưu..." : "💾 Lưu ưu đãi lên Supabase"}
+              </button>
+            </div>
+          )}
         </div>
 
         {promoSaveToast && (
@@ -581,7 +640,7 @@ export default function DiscountManagement() {
             <span className="text-xl">⚡</span>
             <div>
               <span className="text-sm font-bold block">
-                Đã tự động chọn 10 sản phẩm có mức % giảm giá cao nhất!
+                Đã tự động chọn {slotCount} sản phẩm có mức % giảm giá cao nhất!
               </span>
               <span className="text-xs text-rose-700 dark:text-rose-300">
                 Bạn vẫn có thể tự do kéo thả đổi vị trí hoặc gỡ bớt sản phẩm, sau đó nhấn &quot;💾 Lưu thay đổi&quot;.
@@ -603,7 +662,7 @@ export default function DiscountManagement() {
           <div className="flex items-center gap-2.5">
             <span className="text-xl">✓</span>
             <span className="text-sm font-bold">
-              Đã lưu thành công thứ tự và danh sách 10 ô sản phẩm giảm giá!
+              Đã lưu thành công thứ tự và danh sách {slotCount} ô sản phẩm giảm giá!
             </span>
           </div>
           <button
@@ -616,7 +675,7 @@ export default function DiscountManagement() {
       )}
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
           <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Sản phẩm có giảm giá
@@ -645,13 +704,52 @@ export default function DiscountManagement() {
           )}
         </div>
 
+        {/* Ô MỚI: Số lượng sản phẩm (Input tùy chỉnh, mặc định 20) trước Ô đã kích hoạt */}
+        <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between">
+              <label htmlFor="slot-count-input" className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
+                Số lượng sản phẩm
+              </label>
+            </div>
+            <div className="mt-2.5 flex items-center gap-2">
+              <div className="relative flex-1">
+                <input
+                  id="slot-count-input"
+                  type="number"
+                  min={5}
+                  max={200}
+                  value={slotInputVal}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setSlotInputVal(val);
+                    const parsed = parseInt(val, 10);
+                    if (!isNaN(parsed) && parsed >= 5 && parsed <= 200) {
+                      handleSlotCountChange(parsed);
+                    }
+                  }}
+                  onBlur={handleCommitSlotInput}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      handleCommitSlotInput();
+                      e.currentTarget.blur();
+                    }
+                  }}
+                  className="w-full rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-3 py-1.5 text-2xl font-black text-rose-600 dark:text-rose-400 focus:outline-none focus:ring-2 focus:ring-rose-500/30 focus:border-rose-500 transition-all text-center [appearance:textfield] [&::-webkit-outer-spin-button]:appearance-none [&::-webkit-inner-spin-button]:appearance-none"
+                  placeholder="20"
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+
         <div className="rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-5 shadow-xs">
           <span className="text-xs font-semibold text-zinc-500 dark:text-zinc-400 uppercase tracking-wider">
             Ô đã kích hoạt
           </span>
           <p className="mt-2 text-3xl font-black text-amber-500">
             {activeCount}{" "}
-            <span className="text-sm font-normal text-zinc-400">/ {MAX_DISCOUNT_SLOTS}</span>
+            <span className="text-sm font-normal text-zinc-400">/ {slotCount}</span>
           </p>
         </div>
 
@@ -871,98 +969,251 @@ export default function DiscountManagement() {
             </div>
           </div>
 
-          {/* CỘT 2: Danh sách thứ tự 10 Ô sản phẩm giảm giá */}
+          {/* CỘT 2: Danh sách thứ tự các Ô sản phẩm giảm giá (Dual-view) */}
           <div className="lg:col-span-6 space-y-4">
-            <div className="flex items-center justify-between">
-              <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
-                <span>🎯 Cột 2: Thứ Tự 10 Ô Hiển Thị Khuyến Mãi</span>
-                <span className="rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 px-2.5 py-0.5 text-xs font-black">
-                  {activeCount}/10 ô
-                </span>
-              </h3>
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2.5">
               <div className="flex items-center gap-2">
-                <button
-                  type="button"
-                  onClick={handleAutoFillTopDiscount}
-                  className="inline-flex items-center gap-1 rounded-lg border border-rose-300 dark:border-rose-700 bg-rose-50 dark:bg-rose-950/60 px-2.5 py-1 text-[11px] font-bold text-rose-700 dark:text-rose-300 hover:bg-rose-100 dark:hover:bg-rose-900/60 transition-colors cursor-pointer"
-                  title="Tự động lấy 10 sản phẩm có % giảm giá cao nhất"
-                >
-                  <BoltIcon className="h-3 w-3" />
-                  <span>Tự động điền Top 10</span>
-                </button>
-                <span className="text-[11px] text-zinc-400 italic hidden sm:inline">
-                  (Kéo đổi vị trí)
-                </span>
+                <h3 className="text-base font-bold text-zinc-900 dark:text-white flex items-center gap-2">
+                  <span>🎯 Cột 2: Thứ Tự Hiển Thị Khuyến Mãi</span>
+                </h3>
+              </div>
+
+              {/* View Mode Switcher for Column 2: Grid vs Reorder List */}
+              <div className="flex items-center gap-2 flex-wrap">
+                <div className="inline-flex rounded-xl bg-zinc-100 dark:bg-zinc-800 p-0.5 border border-zinc-200 dark:border-zinc-700">
+                  <button
+                    type="button"
+                    onClick={() => setColumn2View("grid")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                      column2View === "grid"
+                        ? "bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <span>📱 Lưới ô</span>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setColumn2View("list")}
+                    className={`px-2.5 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer flex items-center gap-1 ${
+                      column2View === "list"
+                        ? "bg-white dark:bg-zinc-900 text-rose-600 dark:text-rose-400 shadow-xs"
+                        : "text-zinc-500 hover:text-zinc-800 dark:hover:text-zinc-200"
+                    }`}
+                  >
+                    <span>📋 DS Reorder (▲▼)</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* Bộ điều khiển số lượng ô Banner */}
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between p-3 rounded-2xl bg-zinc-50 dark:bg-zinc-800/40 border border-zinc-200/80 dark:border-zinc-800 gap-2 text-xs">
+              <span className="font-bold text-zinc-700 dark:text-zinc-300 flex items-center gap-1.5">
+                <span>⚙️ Số lượng ô banner hiển thị:</span>
+              </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {[10, 20, 30].map((num) => (
+                  <button
+                    key={num}
+                    type="button"
+                    onClick={() => handleSlotCountChange(num)}
+                    className={`px-2.5 py-1 rounded-lg font-bold text-xs transition-all cursor-pointer ${
+                      slotCount === num
+                        ? "bg-rose-600 text-white shadow-xs scale-105"
+                        : "bg-white dark:bg-zinc-900 text-zinc-600 dark:text-zinc-400 border border-zinc-200 dark:border-zinc-700 hover:bg-zinc-100 dark:hover:bg-zinc-800"
+                    }`}
+                  >
+                    {num} ô {num === 20 && "(Mặc định)"}
+                  </button>
+                ))}
               </div>
             </div>
 
             <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 sm:p-5 shadow-sm space-y-5">
-              {/* HÀNG 1: Vị trí #1 - #5 */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Hàng 1 (Vị trí #1 ➔ #5)
-                  </span>
-                  <span className="text-[11px] text-zinc-400">5 ô hàng đầu</span>
-                </div>
+              {column2View === "grid" ? (
+                /* CHẾ ĐỘ 1: LƯỚI Ô ĐỘNG (Dynamic Rows x 5 Cột) */
+                <div className="space-y-5">
+                  {Array.from({ length: Math.ceil(slotCount / 5) }).map((_, rowIdx) => {
+                    const start = rowIdx * 5;
+                    const end = Math.min(start + 5, slotCount);
+                    const rowSlots = localSlots.slice(start, end);
 
-                <div className="grid grid-cols-5 gap-2.5">
-                  {localSlots.slice(0, 5).map((p, i) => {
-                    const slotIndex = i;
-                    const slotNum = i + 1;
-                    const isDragOver = dragOverIndex === slotIndex;
+                    return (
+                      <div key={rowIdx}>
+                        <div className="flex items-center justify-between mb-2.5 px-1">
+                          <span className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
+                            Hàng {rowIdx + 1} (Vị trí #{start + 1} ➔ #{end})
+                          </span>
+                          <span className="text-[11px] text-zinc-400">
+                            {rowIdx === 0 ? "5 ô đầu (Ưu tiên / LCP)" : `${end - start} ô tiếp theo`}
+                          </span>
+                        </div>
+
+                        <div className="grid grid-cols-5 gap-2.5">
+                          {rowSlots.map((p, i) => {
+                            const slotIndex = start + i;
+                            const slotNum = slotIndex + 1;
+                            const isDragOver = dragOverIndex === slotIndex;
+                            const discPercent = p ? calcDiscountPercent(p.price, p.oldPrice) : 0;
+
+                            return (
+                              <div
+                                key={slotIndex}
+                                onDragOver={(e) => handleDragOver(e, slotIndex)}
+                                onDragLeave={(e) => handleDragLeave(e, slotIndex)}
+                                onDrop={(e) => handleDrop(e, slotIndex)}
+                                draggable={Boolean(p)}
+                                onDragStart={(e) => {
+                                  if (p) handleDragStartFromSlot(e, slotIndex, p);
+                                }}
+                                onDragEnd={handleDragEnd}
+                                className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[195px] ${
+                                  isDragOver
+                                    ? "border-rose-500 ring-4 ring-rose-500/20 bg-rose-50/60 dark:bg-rose-950/40 scale-105 z-10"
+                                    : p
+                                    ? "border-rose-300 dark:border-rose-700/60 bg-rose-50/20 dark:bg-rose-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
+                                    : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-rose-400"
+                                }`}
+                              >
+                                {/* Slot Header Badge */}
+                                <div className="flex items-center justify-between mb-1">
+                                  <span
+                                    className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow-2xs ${
+                                      slotNum === 1
+                                        ? "bg-rose-500 text-white"
+                                        : slotNum === 2
+                                        ? "bg-orange-500 text-white"
+                                        : slotNum === 3
+                                        ? "bg-amber-600 text-white"
+                                        : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                    }`}
+                                  >
+                                    #{slotNum}
+                                  </span>
+
+                                  {p && (
+                                    <button
+                                      type="button"
+                                      onClick={() => handleRemoveSlot(slotIndex)}
+                                      className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
+                                      title="Gỡ khỏi ô này"
+                                    >
+                                      <CloseIcon className="h-3.5 w-3.5" />
+                                    </button>
+                                  )}
+                                </div>
+
+                                {p ? (
+                                  <div className="flex flex-col items-center flex-1 justify-between">
+                                    <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
+                                      {p.images?.[0] ? (
+                                        <Image
+                                          src={getAssetPath(p.images[0])}
+                                          alt={p.name}
+                                          fill
+                                          className="object-contain pointer-events-none"
+                                        />
+                                      ) : (
+                                        <div className="h-full w-full bg-zinc-200 dark:bg-zinc-700 rounded-lg" />
+                                      )}
+                                    </div>
+
+                                    <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
+                                      {p.name}
+                                    </p>
+
+                                    <div className="w-full">
+                                      <div className="flex items-center justify-center gap-1 flex-wrap">
+                                        <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 block truncate">
+                                          {formatPrice(p.price)}
+                                        </span>
+                                        {discPercent > 0 && (
+                                          <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
+                                            -{discPercent}%
+                                          </span>
+                                        )}
+                                      </div>
+                                    </div>
+                                  </div>
+                                ) : (
+                                  <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
+                                    <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
+                                      <PlusIcon className="h-3.5 w-3.5" />
+                                    </div>
+                                    <span className="text-[10px] font-semibold">
+                                      Ô #{slotNum} trống
+                                    </span>
+                                    <span className="text-[8px] text-zinc-400 mt-0.5">
+                                      Thả vào đây
+                                    </span>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              ) : (
+                /* CHẾ ĐỘ 2: DANH SÁCH REORDER (Kéo thả ⠿ + Nút ⬆⬇ trực quan) */
+                <div className="space-y-2 max-h-[720px] overflow-y-auto pr-1">
+                  <div className="p-2 rounded-xl bg-amber-50 dark:bg-amber-950/40 border border-amber-200 dark:border-amber-800/50 text-amber-800 dark:text-amber-300 text-xs flex items-center gap-2 mb-3">
+                    <span>💡</span>
+                    <span>
+                      <strong>Mẹo sắp xếp nhanh:</strong> Bạn có thể nhấn nút <strong>▲</strong> hoặc <strong>▼</strong> để hoán đổi vị trí ngay lập tức, hoặc nắm giữ biểu tượng <strong>⠿</strong> để kéo thả.
+                    </span>
+                  </div>
+
+                  {localSlots.map((p, idx) => {
+                    const slotNum = idx + 1;
+                    const isDragOver = dragOverIndex === idx;
                     const discPercent = p ? calcDiscountPercent(p.price, p.oldPrice) : 0;
 
                     return (
                       <div
-                        key={slotIndex}
-                        onDragOver={(e) => handleDragOver(e, slotIndex)}
-                        onDragLeave={(e) => handleDragLeave(e, slotIndex)}
-                        onDrop={(e) => handleDrop(e, slotIndex)}
+                        key={idx}
+                        onDragOver={(e) => handleDragOver(e, idx)}
+                        onDragLeave={(e) => handleDragLeave(e, idx)}
+                        onDrop={(e) => handleDrop(e, idx)}
                         draggable={Boolean(p)}
                         onDragStart={(e) => {
-                          if (p) handleDragStartFromSlot(e, slotIndex, p);
+                          if (p) handleDragStartFromSlot(e, idx, p);
                         }}
                         onDragEnd={handleDragEnd}
-                        className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[195px] ${
+                        className={`flex items-center gap-3 p-2.5 rounded-2xl border transition-all select-none ${
                           isDragOver
-                            ? "border-rose-500 ring-4 ring-rose-500/20 bg-rose-50/60 dark:bg-rose-950/40 scale-105 z-10"
+                            ? "border-rose-500 ring-4 ring-rose-500/20 bg-rose-50/70 dark:bg-rose-950/40 scale-[1.01]"
                             : p
-                            ? "border-rose-300 dark:border-rose-700/60 bg-rose-50/20 dark:bg-rose-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
-                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-rose-400"
+                            ? "border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 hover:border-rose-300 dark:hover:border-rose-700 shadow-2xs cursor-grab active:cursor-grabbing"
+                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/10 text-zinc-400"
                         }`}
                       >
-                        {/* Slot Header Badge */}
-                        <div className="flex items-center justify-between mb-1">
+                        <div className="flex items-center gap-2 shrink-0">
                           <span
-                            className={`inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black shadow-2xs ${
-                              slotNum === 1
+                            className="cursor-grab active:cursor-grabbing text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 text-lg px-1 select-none font-bold"
+                            title="Kéo thả để đổi thứ tự"
+                          >
+                            ⠿
+                          </span>
+                          <span
+                            className={`inline-flex h-6 w-6 items-center justify-center rounded-lg text-xs font-black shadow-2xs ${
+                              slotNum <= 3
                                 ? "bg-rose-500 text-white"
-                                : slotNum === 2
+                                : slotNum <= 5
                                 ? "bg-orange-500 text-white"
-                                : slotNum === 3
-                                ? "bg-amber-600 text-white"
-                                : "bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300"
+                                : "bg-zinc-100 dark:bg-zinc-800 text-zinc-700 dark:text-zinc-300 border border-zinc-200 dark:border-zinc-700"
                             }`}
                           >
                             #{slotNum}
                           </span>
-
-                          {p && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSlot(slotIndex)}
-                              className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
-                              title="Gỡ khỏi ô này"
-                            >
-                              <CloseIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
                         </div>
 
                         {p ? (
-                          <div className="flex flex-col items-center flex-1 justify-between">
-                            <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
+                          <>
+                            <div className="relative h-11 w-11 shrink-0 overflow-hidden rounded-xl bg-zinc-50 dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5">
                               {p.images?.[0] ? (
                                 <Image
                                   src={getAssetPath(p.images[0])}
@@ -975,145 +1226,69 @@ export default function DiscountManagement() {
                               )}
                             </div>
 
-                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
-                              {p.name}
-                            </p>
-
-                            <div className="w-full">
-                              <div className="flex items-center justify-center gap-1 flex-wrap">
-                                <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 block truncate">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs font-bold uppercase text-zinc-900 dark:text-white truncate">
+                                {p.name}
+                              </p>
+                              <div className="flex items-center gap-2 mt-0.5">
+                                <span className="text-xs font-black text-rose-600 dark:text-rose-400">
                                   {formatPrice(p.price)}
                                 </span>
                                 {discPercent > 0 && (
-                                  <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
+                                  <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1.5 py-0.2 text-[10px] font-black">
                                     -{discPercent}%
+                                  </span>
+                                )}
+                                {p.oldPrice && p.oldPrice > p.price && (
+                                  <span className="text-[10px] text-zinc-400 line-through">
+                                    {formatPrice(p.oldPrice)}
                                   </span>
                                 )}
                               </div>
                             </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
-                              <PlusIcon className="h-3.5 w-3.5" />
+
+                            <div className="flex items-center gap-1 shrink-0">
+                              <button
+                                type="button"
+                                onClick={() => handleMoveSlot(idx, "up")}
+                                disabled={idx === 0}
+                                className="h-7 w-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-20 disabled:hover:bg-zinc-50 disabled:hover:text-inherit flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                title="Đưa lên trên 1 vị trí"
+                              >
+                                ▲
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleMoveSlot(idx, "down")}
+                                disabled={idx === slotCount - 1}
+                                className="h-7 w-7 rounded-lg border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 hover:bg-rose-50 hover:text-rose-600 disabled:opacity-20 disabled:hover:bg-zinc-50 disabled:hover:text-inherit flex items-center justify-center text-xs font-bold transition-colors cursor-pointer"
+                                title="Đưa xuống dưới 1 vị trí"
+                              >
+                                ▼
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveSlot(idx)}
+                                className="h-7 w-7 rounded-lg text-zinc-400 hover:text-rose-600 hover:bg-rose-50 dark:hover:bg-rose-950/50 flex items-center justify-center transition-colors cursor-pointer ml-1"
+                                title="Gỡ sản phẩm khỏi ô"
+                              >
+                                <CloseIcon className="h-4 w-4" />
+                              </button>
                             </div>
-                            <span className="text-[10px] font-semibold">
-                              Ô #{slotNum} trống
-                            </span>
-                            <span className="text-[8px] text-zinc-400 mt-0.5">
-                              Thả vào đây
-                            </span>
+                          </>
+                        ) : (
+                          <div className="flex-1 flex items-center justify-between py-1 text-xs text-zinc-400">
+                            <span className="italic">Ô #{slotNum} đang trống (kéo thả sản phẩm vào đây)</span>
+                            <div className="h-6 w-6 rounded-md bg-zinc-100 dark:bg-zinc-800 flex items-center justify-center text-zinc-400">
+                              <PlusIcon className="h-3 w-3" />
+                            </div>
                           </div>
                         )}
                       </div>
                     );
                   })}
                 </div>
-              </div>
-
-              {/* HÀNG 2: Vị trí #6 - #10 */}
-              <div>
-                <div className="flex items-center justify-between mb-2.5 px-1">
-                  <span className="text-xs font-black uppercase tracking-wider text-rose-600 dark:text-rose-400">
-                    Hàng 2 (Vị trí #6 ➔ #10)
-                  </span>
-                  <span className="text-[11px] text-zinc-400">5 ô hàng dưới</span>
-                </div>
-
-                <div className="grid grid-cols-5 gap-2.5">
-                  {localSlots.slice(5, 10).map((p, i) => {
-                    const slotIndex = i + 5;
-                    const slotNum = slotIndex + 1;
-                    const isDragOver = dragOverIndex === slotIndex;
-                    const discPercent = p ? calcDiscountPercent(p.price, p.oldPrice) : 0;
-
-                    return (
-                      <div
-                        key={slotIndex}
-                        onDragOver={(e) => handleDragOver(e, slotIndex)}
-                        onDragLeave={(e) => handleDragLeave(e, slotIndex)}
-                        onDrop={(e) => handleDrop(e, slotIndex)}
-                        draggable={Boolean(p)}
-                        onDragStart={(e) => {
-                          if (p) handleDragStartFromSlot(e, slotIndex, p);
-                        }}
-                        onDragEnd={handleDragEnd}
-                        className={`relative flex flex-col justify-between rounded-2xl border p-2 text-center transition-all duration-200 select-none min-h-[195px] ${
-                          isDragOver
-                            ? "border-rose-500 ring-4 ring-rose-500/20 bg-rose-50/60 dark:bg-rose-950/40 scale-105 z-10"
-                            : p
-                            ? "border-rose-300 dark:border-rose-700/60 bg-rose-50/20 dark:bg-rose-950/20 shadow-xs cursor-grab active:cursor-grabbing hover:shadow-md"
-                            : "border-dashed border-zinc-300 dark:border-zinc-700 bg-zinc-50/50 dark:bg-zinc-800/20 hover:border-rose-400"
-                        }`}
-                      >
-                        {/* Slot Header Badge */}
-                        <div className="flex items-center justify-between mb-1">
-                          <span className="inline-flex h-5 w-5 items-center justify-center rounded-full text-[10px] font-black bg-zinc-200 dark:bg-zinc-700 text-zinc-700 dark:text-zinc-300">
-                            #{slotNum}
-                          </span>
-
-                          {p && (
-                            <button
-                              type="button"
-                              onClick={() => handleRemoveSlot(slotIndex)}
-                              className="text-zinc-400 hover:text-rose-500 transition-colors p-0.5 cursor-pointer"
-                              title="Gỡ khỏi ô này"
-                            >
-                              <CloseIcon className="h-3.5 w-3.5" />
-                            </button>
-                          )}
-                        </div>
-
-                        {p ? (
-                          <div className="flex flex-col items-center flex-1 justify-between">
-                            <div className="relative h-14 w-14 overflow-hidden rounded-xl bg-white dark:bg-zinc-800 border border-zinc-200 dark:border-zinc-700 p-0.5 mb-1">
-                              {p.images?.[0] ? (
-                                <Image
-                                  src={getAssetPath(p.images[0])}
-                                  alt={p.name}
-                                  fill
-                                  className="object-contain pointer-events-none"
-                                />
-                              ) : (
-                                <div className="h-full w-full bg-zinc-200 dark:bg-zinc-700 rounded-lg" />
-                              )}
-                            </div>
-
-                            <p className="text-[10px] font-bold uppercase text-zinc-900 dark:text-white line-clamp-2 leading-tight mb-1">
-                              {p.name}
-                            </p>
-
-                            <div className="w-full">
-                              <div className="flex items-center justify-center gap-1 flex-wrap">
-                                <span className="text-[9px] font-black text-rose-600 dark:text-rose-400 block truncate">
-                                  {formatPrice(p.price)}
-                                </span>
-                                {discPercent > 0 && (
-                                  <span className="rounded bg-rose-100 dark:bg-rose-950/80 text-rose-600 dark:text-rose-400 px-1 py-0.2 text-[8px] font-black">
-                                    -{discPercent}%
-                                  </span>
-                                )}
-                              </div>
-                            </div>
-                          </div>
-                        ) : (
-                          <div className="flex flex-col items-center justify-center py-6 flex-1 text-zinc-400">
-                            <div className="flex h-8 w-8 items-center justify-center rounded-full bg-zinc-100 dark:bg-zinc-800 mb-1.5">
-                              <PlusIcon className="h-3.5 w-3.5" />
-                            </div>
-                            <span className="text-[10px] font-semibold">
-                              Ô #{slotNum} trống
-                            </span>
-                            <span className="text-[8px] text-zinc-400 mt-0.5">
-                              Thả vào đây
-                            </span>
-                          </div>
-                        )}
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              )}
 
               {/* Bottom Quick Save Footer inside Column 2 */}
               <div className="flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3">
@@ -1129,7 +1304,7 @@ export default function DiscountManagement() {
                       : "bg-zinc-700 hover:bg-zinc-600"
                   }`}
                 >
-                  💾 Lưu 10 vị trí
+                  💾 Lưu {slotCount} vị trí
                 </button>
               </div>
             </div>
@@ -1273,11 +1448,11 @@ export default function DiscountManagement() {
                 Xem trước giao diện &quot;Sản Phẩm Giảm Giá Nổi Bật&quot;
               </h3>
               <p className="text-xs text-zinc-500 dark:text-zinc-400">
-                Mô phỏng hiển thị 10 ô sản phẩm khuyến mãi trên giao diện khách hàng
+                Mô phỏng hiển thị {slotCount} ô sản phẩm khuyến mãi trên giao diện khách hàng
               </p>
             </div>
             <span className="rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600 dark:text-rose-400 px-3 py-1 text-xs font-bold">
-              {activeCount}/10 sản phẩm
+              {activeCount}/{slotCount} sản phẩm
             </span>
           </div>
 

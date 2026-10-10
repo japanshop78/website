@@ -15,11 +15,11 @@ import { StarIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 export default function FeaturedProductsSection() {
-  const { getFeaturedProducts, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
+  const { getFeaturedProducts, getCategoryIdByProductId, categories, promotion, isPromotionActive, featuredBannerLimit } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
-  const featuredProducts = getFeaturedProducts(15);
+  const featuredProducts = getFeaturedProducts(featuredBannerLimit || 20);
 
   const [itemsPerView, setItemsPerView] = useState(5);
   const [isPaused, setIsPaused] = useState(false);

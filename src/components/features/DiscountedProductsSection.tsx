@@ -38,7 +38,14 @@ function getTimeUntilTarget(targetDateStr?: string) {
 const formatTime = (num: number) => String(num).padStart(2, "0");
 
 export default function DiscountedProductsSection() {
-  const { getProductsByBanner, getCategoryIdByProductId, categories, promotion, isPromotionActive } = useProductData();
+  const {
+    getProductsByBanner,
+    getCategoryIdByProductId,
+    categories,
+    promotion,
+    isPromotionActive,
+    discountBannerLimit = 20,
+  } = useProductData();
   const { addToCart } = useCart();
   const [addedId, setAddedId] = useState<string | null>(null);
 
@@ -56,7 +63,7 @@ export default function DiscountedProductsSection() {
   }, [promotion?.endDate]);
 
   // Filter products by banner "discount" (or "Sản phẩm giảm giá")
-  const discountedProducts = getProductsByBanner("discount", 15);
+  const discountedProducts = getProductsByBanner("discount", discountBannerLimit);
 
   const [isPaused, setIsPaused] = useState(false);
   const [isTransitioning, setIsTransitioning] = useState(true);

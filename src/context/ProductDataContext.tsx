@@ -178,6 +178,10 @@ interface ProductContextType {
   promotion: PromotionCampaign;
   updatePromotion: (data: Partial<PromotionCampaign>) => Promise<boolean>;
   isPromotionActive: boolean;
+  discountBannerLimit: number;
+  updateDiscountBannerLimit: (limit: number) => Promise<boolean>;
+  featuredBannerLimit: number;
+  updateFeaturedBannerLimit: (limit: number) => Promise<boolean>;
 }
 
 const ProductDataContext = createContext<ProductContextType | undefined>(undefined);
@@ -188,6 +192,8 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
   const [categoryProducts, setCategoryProductsState] = useState<CategoryProductMapping[]>(DEFAULT_CATEGORY_PRODUCTS);
   const [orders, setOrders] = useState<ProductOrder[]>(DEFAULT_ORDER);
   const [promotion, setPromotion] = useState<PromotionCampaign>(DEFAULT_PROMOTION);
+  const [discountBannerLimit, setDiscountBannerLimit] = useState<number>(20);
+  const [featuredBannerLimit, setFeaturedBannerLimit] = useState<number>(20);
   const [isLoaded, setIsLoaded] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseConnectionStatus>("loading");
 
@@ -200,7 +206,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
 
     try {
       // Fetch all resources concurrently for high performance
-      const [catRes, catProdRes, prodRes, ordRes, promoRes] = await Promise.all([
+      const [catRes, catProdRes, prodRes, ordRes, promoRes, settingsRes] = await Promise.all([
         supabase
           .from("categories")
           .select("*")
@@ -224,6 +230,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         supabase.from("products").select("*").order("created_at", { ascending: false }),
         supabase.from("product_orders").select("product_id, order_num, banner").order("order_num", { ascending: true }),
         supabase.from("promotions").select("*").eq("id", "active_campaign").maybeSingle(),
+        supabase.from("settings").select("*"),
       ]);
 
       if (catRes.error || prodRes.error || catProdRes.error || ordRes.error) {
@@ -268,6 +275,20 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
           bannerTitle: p.banner_title || DEFAULT_PROMOTION.bannerTitle,
           bannerSubtitle: p.banner_subtitle || DEFAULT_PROMOTION.bannerSubtitle,
           updatedAt: p.updated_at,
+        });
+      }
+
+      if (settingsRes?.data && Array.isArray(settingsRes.data)) {
+        settingsRes.data.forEach((row: { key?: string; value?: string }) => {
+          if (!row.key || !row.value) return;
+          const val = parseInt(row.value, 10);
+          if (!isNaN(val) && val >= 5 && val <= 200) {
+            if (row.key === "discount_banner_limit") {
+              setDiscountBannerLimit(val);
+            } else if (row.key === "featured_banner_limit") {
+              setFeaturedBannerLimit(val);
+            }
+          }
         });
       }
 
@@ -1280,6 +1301,64 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const updateDiscountBannerLimit = async (limit: number): Promise<boolean> => {
+    const clamped = Math.min(200, Math.max(5, limit));
+    setDiscountBannerLimit(clamped);
+
+    if (!supabase || !isSupabaseConfigured()) {
+      return true;
+    }
+
+    try {
+      const { error } = await supabase.from("settings").upsert(
+        {
+          key: "discount_banner_limit",
+          value: String(clamped),
+          description: "Số lượng sản phẩm hiển thị trên banner giảm giá ưu đãi hot",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+      if (error) {
+        console.error("Failed to update discount_banner_limit in settings:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to save discount_banner_limit in Supabase:", err);
+      return false;
+    }
+  };
+
+  const updateFeaturedBannerLimit = async (limit: number): Promise<boolean> => {
+    const clamped = Math.min(200, Math.max(5, limit));
+    setFeaturedBannerLimit(clamped);
+
+    if (!supabase || !isSupabaseConfigured()) {
+      return true;
+    }
+
+    try {
+      const { error } = await supabase.from("settings").upsert(
+        {
+          key: "featured_banner_limit",
+          value: String(clamped),
+          description: "Số lượng sản phẩm hiển thị trên banner sản phẩm bán chạy",
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+      if (error) {
+        console.error("Failed to update featured_banner_limit in settings:", error);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error("Failed to save featured_banner_limit in Supabase:", err);
+      return false;
+    }
+  };
+
   return (
     <ProductDataContext.Provider
       value={{
@@ -1290,6 +1369,10 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
         promotion,
         updatePromotion,
         isPromotionActive,
+        discountBannerLimit,
+        updateDiscountBannerLimit,
+        featuredBannerLimit,
+        updateFeaturedBannerLimit,
         isLoaded,
         supabaseStatus,
         addProduct,

@@ -581,6 +581,51 @@ export const supabaseService = {
       return { success: false, message: `Lỗi đồng bộ: ${msg}` };
     }
   },
+
+  // --------------------------------------------------------------------------
+  // SETTINGS (KEY-VALUE CONFIGURATION)
+  // --------------------------------------------------------------------------
+  async getSetting(key: string, defaultValue: string = ""): Promise<string> {
+    if (!supabase) return defaultValue;
+    try {
+      const { data, error } = await supabase
+        .from("settings")
+        .select("value")
+        .eq("key", key)
+        .maybeSingle();
+
+      if (error) {
+        console.warn(`[supabaseService] getSetting(${key}) warning:`, error.message);
+        return defaultValue;
+      }
+      return data?.value ?? defaultValue;
+    } catch {
+      return defaultValue;
+    }
+  },
+
+  async setSetting(key: string, value: string, description?: string): Promise<boolean> {
+    if (!supabase) return false;
+    try {
+      const { error } = await supabase.from("settings").upsert(
+        {
+          key,
+          value,
+          description: description || undefined,
+          updated_at: new Date().toISOString(),
+        },
+        { onConflict: "key" }
+      );
+      if (error) {
+        console.error(`[supabaseService] setSetting(${key}) error:`, error.message);
+        return false;
+      }
+      return true;
+    } catch (err) {
+      console.error(`[supabaseService] setSetting(${key}) error:`, err);
+      return false;
+    }
+  },
 };
 
 export default supabaseService;
