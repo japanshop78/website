@@ -2,6 +2,7 @@ import { categoryService } from "@/services/categoryService";
 import type { Metadata } from "next";
 import CategoryDetailPage from "./CategoryDetailPage";
 import CategoryNotFound from "./not-found";
+import { getSiteUrl } from "@/utils/siteUrl";
 
 export const dynamicParams = false;
 
@@ -26,6 +27,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const category = await categoryService.getCategoryById(id);
+  const baseUrl = getSiteUrl();
 
   if (!category) {
     return {
@@ -42,13 +44,13 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${category.name} - Japan Shop`,
       description,
-      url: `https://japanshop.vn/category/${category.id}`,
+      url: `${baseUrl}/category/${category.id}`,
       siteName: "Japan Shop",
       locale: "vi_VN",
       type: "website",
       images: [
         {
-          url: "https://japanshop.vn/logo.jpg",
+          url: `${baseUrl}/logo.jpg`,
           width: 600,
           height: 600,
           alt: category.name,
@@ -59,7 +61,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
       card: "summary_large_image",
       title: `${category.name} - Japan Shop`,
       description,
-      images: ["https://japanshop.vn/logo.jpg"],
+      images: [`${baseUrl}/logo.jpg`],
     },
   };
 }
@@ -67,6 +69,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const { id } = await params;
   const category = (await categoryService.getCategoryById(id));
+  const baseUrl = getSiteUrl();
 
   if (!category) {
     return <CategoryNotFound />;
@@ -76,13 +79,37 @@ export default async function Page({ params }: Props) {
   const stats = await categoryService.getCategoryStats(category.id);
   const allCategories = await categoryService.getCategories();
 
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Trang chủ",
+        item: baseUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: category.name,
+        item: `${baseUrl}/category/${category.id}`,
+      },
+    ],
+  };
+
   return (
-    <CategoryDetailPage
-      category={category}
-      products={products}
-      stats={stats}
-      allCategories={allCategories}
-    />
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <CategoryDetailPage
+        category={category}
+        products={products}
+        stats={stats}
+        allCategories={allCategories}
+      />
+    </>
   );
 }
-

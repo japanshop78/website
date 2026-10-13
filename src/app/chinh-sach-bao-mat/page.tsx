@@ -74,7 +74,6 @@ export default function PrivacyPolicyPage() {
               </h2>
               <p><strong>Cửa hàng Japan Shop (C3 Shop)</strong></p>
               <p className="text-xs text-zinc-500">
-                Địa chỉ: 1017/26/18 Lê Văn Lương (90A đường B7, khu B, làng đại học), Ấp 3, Nhà Bè, TP. Hồ Chí Minh<br />
                 Hotline hỗ trợ: 0902 493 895
               </p>
             </section>

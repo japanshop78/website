@@ -9,6 +9,7 @@ import TrackingScripts from "@/components/TrackingScripts";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { ProductDataProvider } from "@/context/ProductDataContext";
 import { CartProvider } from "@/context/CartContext";
+import { getSiteUrl } from "@/utils/siteUrl";
 
 const plusJakartaSans = Plus_Jakarta_Sans({
   variable: "--font-sans",
@@ -17,10 +18,67 @@ const plusJakartaSans = Plus_Jakarta_Sans({
   display: "swap",
 });
 
+const baseUrl = getSiteUrl();
+
 export const metadata: Metadata = {
-  title: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
+  metadataBase: new URL(baseUrl),
+  title: {
+    default: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
+    template: "%s | Japan Shop",
+  },
   description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
   referrer: "no-referrer",
+  verification: {
+    google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
+  },
+  alternates: {
+    canonical: "./",
+  },
+  openGraph: {
+    title: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
+    description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+    url: baseUrl,
+    siteName: "Japan Shop",
+    locale: "vi_VN",
+    type: "website",
+    images: [
+      {
+        url: `${baseUrl}/logo.jpg`,
+        width: 600,
+        height: 600,
+        alt: "Japan Shop Logo",
+      },
+    ],
+  },
+};
+
+const organizationSchema = {
+  "@context": "https://schema.org",
+  "@type": "Organization",
+  name: "Japan Shop",
+  url: baseUrl,
+  logo: `${baseUrl}/logo.jpg`,
+  description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+  telephone: "+84902493895",
+  contactPoint: {
+    "@type": "ContactPoint",
+    telephone: "+84902493895",
+    contactType: "customer service",
+    areaServed: "VN",
+    availableLanguage: ["vi", "ja"],
+  },
+};
+
+const webSiteSchema = {
+  "@context": "https://schema.org",
+  "@type": "WebSite",
+  name: "Japan Shop",
+  url: baseUrl,
+  potentialAction: {
+    "@type": "SearchAction",
+    target: `${baseUrl}/search?q={search_term_string}`,
+    "query-input": "required name=search_term_string",
+  },
 };
 
 export default function RootLayout({
@@ -35,6 +93,14 @@ export default function RootLayout({
       suppressHydrationWarning
     >
       <body className="min-h-full flex flex-col bg-zinc-50 text-zinc-900 dark:bg-black dark:text-zinc-50 font-sans">
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(organizationSchema) }}
+        />
+        <script
+          type="application/ld+json"
+          dangerouslySetInnerHTML={{ __html: JSON.stringify(webSiteSchema) }}
+        />
         <TrackingScripts />
         <ThemeProvider>
           <ProductDataProvider>
@@ -51,6 +117,3 @@ export default function RootLayout({
     </html>
   );
 }
-
-
-

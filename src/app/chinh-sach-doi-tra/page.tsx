@@ -81,7 +81,6 @@ export default function ReturnPolicyPage() {
               <ul className="list-none space-y-1 pl-0">
                 <li><strong>Hotline / Zalo:</strong> 0902 493 895</li>
                 <li><strong>Email:</strong> japanshop.tuyan78@gmail.com</li>
-                <li><strong>Địa chỉ:</strong> 1017/26/18 Lê Văn Lương, Ấp 3, Nhà Bè, TP. Hồ Chí Minh</li>
               </ul>
             </section>
           </div>

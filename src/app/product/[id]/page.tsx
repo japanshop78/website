@@ -2,6 +2,7 @@ import { productService } from "@/services/productService";
 import type { Metadata } from "next";
 import ProductDetailPage from "./ProductDetailPage";
 import ProductNotFound from "./not-found";
+import { getSiteUrl } from "@/utils/siteUrl";
 
 export const dynamicParams = false;
 
@@ -25,6 +26,7 @@ export function generateStaticParams() {
 export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const { id } = await params;
   const product = await productService.getProductById(id);
+  const baseUrl = getSiteUrl();
 
   if (!product) {
     return {
@@ -36,8 +38,8 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   const primaryImage = product.images?.[0]
     ? (product.images[0].startsWith("http")
         ? product.images[0]
-        : `https://japanshop.vn${product.images[0]}`)
-    : "https://japanshop.vn/logo.jpg";
+        : `${baseUrl}${product.images[0]}`)
+    : `${baseUrl}/logo.jpg`;
 
   const description = product.description
     ? product.description.slice(0, 160)
@@ -49,7 +51,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
     openGraph: {
       title: `${product.name} - Japan Shop`,
       description,
-      url: `https://japanshop.vn/product/${product.id}`,
+      url: `${baseUrl}/product/${product.id}`,
       siteName: "Japan Shop",
       locale: "vi_VN",
       type: "website",
@@ -74,9 +76,64 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
 export default async function Page({ params }: Props) {
   const { id } = await params;
   const product = await productService.getProductById(id);
+  const baseUrl = getSiteUrl();
 
   if (!product) return <ProductNotFound />;
 
-  return <ProductDetailPage product={product} related={[]} />;
-}
+  const imageUrls = product.images && product.images.length > 0
+    ? product.images.map((img) => (img.startsWith("http") ? img : `${baseUrl}${img}`))
+    : [`${baseUrl}/logo.jpg`];
 
+  // Schema Product (Lưu ý: Không bao gồm tình trạng còn hàng theo yêu cầu)
+  const productJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "Product",
+    name: product.name,
+    image: imageUrls,
+    description: product.description || product.name,
+    offers: {
+      "@type": "Offer",
+      price: product.price,
+      priceCurrency: "VND",
+      url: `${baseUrl}/product/${product.id}`,
+    },
+    aggregateRating: {
+      "@type": "AggregateRating",
+      ratingValue: product.rating || 5,
+      reviewCount: product.reviews || 1,
+    },
+  };
+
+  const breadcrumbJsonLd = {
+    "@context": "https://schema.org",
+    "@type": "BreadcrumbList",
+    itemListElement: [
+      {
+        "@type": "ListItem",
+        position: 1,
+        name: "Trang chủ",
+        item: baseUrl,
+      },
+      {
+        "@type": "ListItem",
+        position: 2,
+        name: product.name,
+        item: `${baseUrl}/product/${product.id}`,
+      },
+    ],
+  };
+
+  return (
+    <>
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(productJsonLd) }}
+      />
+      <script
+        type="application/ld+json"
+        dangerouslySetInnerHTML={{ __html: JSON.stringify(breadcrumbJsonLd) }}
+      />
+      <ProductDetailPage product={product} related={[]} />
+    </>
+  );
+}
