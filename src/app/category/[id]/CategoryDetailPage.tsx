@@ -224,7 +224,7 @@ export default function CategoryDetailPage({
   return (
     <div className="flex-1 bg-zinc-50 dark:bg-zinc-950 pb-20">
       {/* Breadcrumb */}
-      <div className="border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
+      <div className="hidden sm:block border-b border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900">
         <div className="w-full px-4 py-3 sm:px-6 lg:px-8">
           <Breadcrumb
             items={[
@@ -243,25 +243,31 @@ export default function CategoryDetailPage({
         />
         <div className="absolute inset-0 bg-black/20 backdrop-blur-[1px]" />
         
-        <div className="relative w-full px-4 py-12 sm:px-6 lg:px-8 sm:py-16">
+        <div className="relative w-full px-4 py-5 sm:px-6 lg:px-8 sm:py-16">
           <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-8">
             <div className="max-w-2xl">
-              {/* <div className="inline-flex items-center gap-2.5 rounded-full bg-white/20 px-3.5 py-1 text-sm font-semibold backdrop-blur-md mb-4 text-white">
-                {renderCategoryIcon(category.iconName, "h-4 w-4")}
-                <span>{category.name}</span>
-                <span className="opacity-60">•</span>
-                <span className="opacity-90">{activeStats.totalProducts} sản phẩm hiện có</span>
-              </div> */}
-              <h1 className="text-3xl font-extrabold tracking-tight sm:text-5xl text-white">
+              <h1 className="text-xl font-extrabold tracking-tight sm:text-5xl text-white">
                 {category.name}
               </h1>
-              {/* <p className="mt-3 text-base text-zinc-100 sm:text-lg max-w-xl leading-relaxed">
-                {category.description}
-              </p> */}
+
+              {/* Mobile Quick Stats Pills */}
+              <div className="mt-2.5 flex sm:hidden flex-wrap items-center gap-1.5 text-xs text-white">
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/30 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold border border-white/10">
+                  📦 {activeStats.totalProducts} sản phẩm
+                </span>
+                <span className="inline-flex items-center gap-1 rounded-full bg-black/30 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold border border-white/10 text-amber-300">
+                  ★ {activeStats.avgRating}
+                </span>
+                {activeStats.minPrice > 0 && (
+                  <span className="inline-flex items-center gap-1 rounded-full bg-black/30 backdrop-blur-md px-2.5 py-1 text-[11px] font-semibold border border-white/10">
+                    Từ {formatPrice(activeStats.minPrice)}
+                  </span>
+                )}
+              </div>
 
               {/* Subcategories tags */}
               {category.subcategories && category.subcategories.length > 0 && (
-                <div className="mt-6 flex flex-wrap items-center gap-2">
+                <div className="mt-4 sm:mt-6 flex flex-wrap items-center gap-2">
                   <span className="text-xs font-semibold uppercase tracking-wider text-zinc-200 mr-1">
                     Gợi ý:
                   </span>
@@ -292,8 +298,8 @@ export default function CategoryDetailPage({
               )}
             </div>
 
-            {/* Quick Stats Box */}
-            <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-2xl bg-black/30 backdrop-blur-md p-4 border border-white/10 text-center">
+            {/* Quick Stats Box (Desktop) */}
+            <div className="hidden sm:grid grid-cols-2 sm:grid-cols-3 gap-3 rounded-2xl bg-black/30 backdrop-blur-md p-4 border border-white/10 text-center">
               <div className="p-3">
                 <span className="block text-2xl font-black text-white">{activeStats.totalProducts}</span>
                 <span className="text-xs text-zinc-300">Mẫu sản phẩm</span>
@@ -316,19 +322,19 @@ export default function CategoryDetailPage({
       </div>
 
       {/* Main Content Area */}
-      <div className="w-full px-4 pt-8 sm:px-6 lg:px-8">
+      <div className="w-full px-3 pt-4 sm:px-6 sm:pt-8 lg:px-8">
         {/* Controls Bar: Search, Filters, Sorting & View Toggle */}
-        <div className="flex flex-col gap-4 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex flex-col gap-3 rounded-2xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-3 sm:p-4 shadow-xs sm:flex-row sm:items-center sm:justify-between">
           {/* Search inside category */}
-          <div className="relative flex-1 max-w-md">
+          <div className="relative flex-1 max-w-md w-full">
             <input
               type="text"
               placeholder={`Tìm trong danh mục ${category.name}...`}
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
-              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-10 pr-4 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:border-indigo-400"
+              className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-9 pr-4 text-xs sm:text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-700 dark:bg-zinc-800 dark:text-white dark:focus:border-indigo-400"
             />
-            <SearchIcon className="absolute left-3.5 top-2.5 h-4 w-4 text-zinc-400" />
+            <SearchIcon className="absolute left-3 top-2.5 h-4 w-4 text-zinc-400" />
             {searchQuery && (
               <button
                 onClick={() => setSearchQuery("")}
@@ -340,14 +346,14 @@ export default function CategoryDetailPage({
           </div>
 
           {/* Filters & Actions */}
-          <div className="flex flex-wrap items-center gap-3">
+          <div className="grid grid-cols-2 gap-2 sm:flex sm:flex-wrap sm:items-center sm:gap-3 w-full sm:w-auto">
             {/* Price Filter dropdown */}
-            <div className="flex items-center gap-1.5">
-              <FilterIcon className="h-4 w-4 text-zinc-400" />
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <FilterIcon className="h-4 w-4 text-zinc-400 shrink-0" />
               <select
                 value={priceFilter}
                 onChange={(e) => setPriceFilter(e.target.value)}
-                className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
+                className="w-full sm:w-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 sm:px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="all">Tất cả mức giá</option>
                 <option value="under-500k">Dưới 500.000đ</option>
@@ -357,12 +363,12 @@ export default function CategoryDetailPage({
             </div>
 
             {/* Sort options */}
-            <div className="flex items-center gap-1.5">
-              <ArrowUpDownIcon className="h-4 w-4 text-zinc-400" />
+            <div className="flex items-center gap-1.5 w-full sm:w-auto">
+              <ArrowUpDownIcon className="h-4 w-4 text-zinc-400 shrink-0" />
               <select
                 value={sortBy}
                 onChange={(e) => setSortBy(e.target.value as "featured" | "price-asc" | "price-desc" | "rating")}
-                className="rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
+                className="w-full sm:w-auto rounded-xl border border-zinc-200 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 sm:px-3 py-2 text-xs font-medium text-zinc-700 dark:text-zinc-200 outline-none cursor-pointer focus:border-indigo-500"
               >
                 <option value="featured">Thứ tự sắp xếp (Mặc định)</option>
                 <option value="price-asc">Giá: Thấp đến Cao</option>
@@ -488,7 +494,7 @@ export default function CategoryDetailPage({
 
         {/* Product Grid View */}
         {filteredProducts.length > 0 && viewMode === "grid" && (
-          <div className="grid grid-cols-1 gap-x-6 gap-y-10 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
+          <div className="grid grid-cols-2 gap-2.5 sm:gap-6 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4">
             {filteredProducts.map((product, index) => {
               const {
                 effectivePrice,
@@ -502,11 +508,11 @@ export default function CategoryDetailPage({
               return (
                 <div
                   key={product.id}
-                  className="group relative flex flex-col justify-between rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
+                  className="group relative flex flex-col justify-between rounded-2xl sm:rounded-3xl border border-zinc-200/80 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-2.5 sm:p-4 transition-all duration-300 hover:shadow-xl hover:-translate-y-1"
                 >
                   <div>
                     {/* Image Area */}
-                    <div className="relative aspect-square w-full overflow-hidden rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-800 p-2">
+                    <div className="relative aspect-square w-full overflow-hidden rounded-xl sm:rounded-2xl bg-white dark:bg-zinc-800 border border-zinc-200/60 dark:border-zinc-800 p-1.5 sm:p-2">
                       {primaryImage ? (
                         <Image
                           src={getAssetPath(primaryImage)}
@@ -515,28 +521,28 @@ export default function CategoryDetailPage({
                           priority={index < 4}
                           loading={index < 4 ? "eager" : "lazy"}
                           className="object-contain p-1 group-hover:scale-105 transition-transform duration-300"
-                          sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                          sizes="(max-width: 640px) 50vw, (max-width: 1024px) 50vw, 33vw"
                         />
                       ) : (
                         <div
                           className={`absolute inset-0 bg-gradient-to-br ${product.imageBg} opacity-90 group-hover:scale-105 transition-transform duration-300 flex items-center justify-center`}
                         >
-                          <span className="text-white font-bold text-sm tracking-wide bg-black/25 backdrop-blur-md px-4 py-2 rounded-full">
+                          <span className="text-white font-bold text-xs sm:text-sm tracking-wide bg-black/25 backdrop-blur-md px-2.5 sm:px-4 py-1 sm:py-2 rounded-full">
                             {category.name}
                           </span>
                         </div>
                       )}
 
                       {discount && (
-                        <span className="absolute top-3 left-3 w-10 h-10 rounded-full bg-rose-600 text-white text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
+                        <span className="absolute top-2 left-2 sm:top-3 sm:left-3 w-7 h-7 sm:w-10 sm:h-10 rounded-full bg-rose-600 text-white text-[10px] sm:text-sm font-bold flex items-center justify-center shadow-md tracking-tight z-10">
                           -{discount}%
                         </span>
                       )}
                     </div>
 
                     {/* Content */}
-                    <div className="mt-4">
-                      <h3 className="text-base font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2">
+                    <div className="mt-2.5 sm:mt-4">
+                      <h3 className="text-xs sm:text-base font-semibold text-zinc-900 uppercase dark:text-white line-clamp-2">
                         <Link href={`/product/${product.id}`}>
                           <span aria-hidden="true" className="absolute inset-0" />
                           {product.name}
@@ -548,39 +554,42 @@ export default function CategoryDetailPage({
                       </p>
 
                       {/* Rating */}
-                      <div className="mt-2.5 flex items-center gap-1.5 text-xs">
-                        <StarIcon className="h-4 w-4 text-amber-400" />
+                      <div className="mt-1.5 sm:mt-2.5 flex items-center gap-1 sm:gap-1.5 text-[11px] sm:text-xs">
+                        <StarIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4 text-amber-400" />
                         <span className="font-bold text-zinc-800 dark:text-zinc-200">
                           {product.rating}
                         </span>
-                        <span className="text-zinc-400">({product.reviews} đánh giá)</span>
+                        <span className="text-zinc-400">
+                          <span className="sm:hidden">({product.reviews})</span>
+                          <span className="hidden sm:inline">({product.reviews} đánh giá)</span>
+                        </span>
                       </div>
                     </div>
                   </div>
 
                   {/* Price & Action */}
-                  <div className="mt-5 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-3 z-10">
+                  <div className="mt-3 sm:mt-5 flex items-center justify-between border-t border-zinc-100 dark:border-zinc-800 pt-2 sm:pt-3 z-10">
                     <div className="flex flex-col">
                       {effectiveOldPrice && effectiveOldPrice > effectivePrice && (
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          <span className="text-xs text-zinc-400 line-through">
+                        <div className="flex items-center gap-1 sm:gap-1.5 flex-wrap">
+                          <span className="text-[10px] sm:text-xs text-zinc-400 line-through">
                             {formatPrice(effectiveOldPrice)}
                           </span>
                           {savingsAmount > 0 && (
-                            <span className="text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
+                            <span className="hidden sm:inline text-[10px] font-bold text-emerald-600 dark:text-emerald-400">
                               -{formatPrice(savingsAmount)}
                             </span>
                           )}
                         </div>
                       )}
-                      <span className="text-base font-bold text-zinc-900 dark:text-white">
+                      <span className="text-xs sm:text-base font-bold text-zinc-900 dark:text-white">
                         {formatPrice(effectivePrice)}
                       </span>
                     </div>
 
                     <button
                       onClick={(e) => handleAddToCart(product, e)}
-                      className={`flex items-center gap-1 rounded-full p-2.5 transition-all duration-200 cursor-pointer ${
+                      className={`flex items-center justify-center rounded-full p-2 sm:p-2.5 transition-all duration-200 cursor-pointer ${
                         isAdded
                           ? "bg-green-600 text-white"
                           : "bg-zinc-900 dark:bg-white text-white dark:text-zinc-950 hover:bg-indigo-600 dark:hover:bg-indigo-400 hover:text-white"
@@ -588,9 +597,9 @@ export default function CategoryDetailPage({
                       title={isAdded ? "Đã thêm vào giỏ" : "Thêm vào giỏ hàng"}
                     >
                       {isAdded ? (
-                        <CheckIcon className="h-4 w-4" />
+                        <CheckIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       ) : (
-                        <PlusIcon className="h-4 w-4" />
+                        <PlusIcon className="h-3.5 w-3.5 sm:h-4 sm:w-4" />
                       )}
                     </button>
                   </div>
@@ -725,7 +734,7 @@ export default function CategoryDetailPage({
         )}
 
         {/* Other Categories Carousel / Navigation */}
-        <div className="mt-24 border-t border-zinc-200 dark:border-zinc-800 pt-16">
+        <div className="mt-12 sm:mt-24 border-t border-zinc-200 dark:border-zinc-800 pt-8 sm:pt-16">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h2 className="text-2xl font-bold tracking-tight text-zinc-900 dark:text-white">

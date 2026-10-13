@@ -3,9 +3,8 @@
 import React, { useState, useEffect, useRef, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useProductData } from "@/context/ProductDataContext";
-import { Product } from "@/data/products";
 import { getAssetPath } from "@/utils/assetPath";
 import { getProductPricing } from "@/types/promotion";
 import SearchIcon from "./icons/SearchIcon";
@@ -15,23 +14,39 @@ const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
 interface LiveSearchDropdownProps {
   isOpen: boolean;
-  onClose: () => void;
+  onClose?: () => void;
   className?: string;
 }
 
 export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: LiveSearchDropdownProps) {
   const router = useRouter();
+  const pathname = usePathname();
   const { products, categories, getCategoryIdByProductId, promotion, isPromotionActive } = useProductData();
   const [query, setQuery] = useState("");
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
+  const [isOpenResults, setIsOpenResults] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Automatically close dropdown and reset query when route changes
+  useEffect(() => {
+    setIsOpenResults(false);
+    setQuery("");
+    setDebouncedQuery("");
+    setSelectedIndex(-1);
+  }, [pathname]);
 
   // Debounce search query
   useEffect(() => {
     const timer = setTimeout(() => {
-      setDebouncedQuery(query.trim());
+      const trimmed = query.trim();
+      setDebouncedQuery(trimmed);
+      if (trimmed) {
+        setIsOpenResults(true);
+      } else {
+        setIsOpenResults(false);
+      }
     }, 180);
     return () => clearTimeout(timer);
   }, [query]);
@@ -42,15 +57,17 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
       setTimeout(() => inputRef.current?.focus(), 50);
     } else {
       setQuery("");
+      setDebouncedQuery("");
       setSelectedIndex(-1);
+      setIsOpenResults(false);
     }
   }, [isOpen]);
 
-  // Close on outside click
+  // Close suggestion dropdown on outside click
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
-        onClose();
+        setIsOpenResults(false);
       }
     };
     if (isOpen) {
@@ -59,7 +76,18 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen]);
+
+  const handleCloseDropdown = (clearText: boolean = false) => {
+    setIsOpenResults(false);
+    setSelectedIndex(-1);
+    if (clearText) {
+      setQuery("");
+      setDebouncedQuery("");
+    }
+    inputRef.current?.blur();
+    onClose?.();
+  };
 
   // Category map for fast name lookup
   const categoryMap = useMemo(() => {
@@ -87,20 +115,20 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     if (e) e.preventDefault();
     if (selectedIndex >= 0 && searchResults[selectedIndex]) {
       const selected = searchResults[selectedIndex];
-      onClose();
+      handleCloseDropdown(true);
       router.push(`/product/${selected.id}`);
       return;
     }
     if (query.trim()) {
       const targetQuery = encodeURIComponent(query.trim());
-      onClose();
+      handleCloseDropdown(false);
       router.push(`/search?q=${targetQuery}`);
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Escape") {
-      onClose();
+      handleCloseDropdown(false);
     } else if (e.key === "ArrowDown") {
       e.preventDefault();
       setSelectedIndex((prev) => (prev < searchResults.length - 1 ? prev + 1 : prev));
@@ -128,18 +156,28 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
             type="text"
             placeholder="Tìm theo tên sản phẩm, công dụng, thành phần..."
             value={query}
+            onFocus={() => {
+              if (debouncedQuery) {
+                setIsOpenResults(true);
+              }
+            }}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(-1);
             }}
             onKeyDown={handleKeyDown}
-            className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 pl-4 pr-24 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
+            className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 pl-4 pr-16 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
           />
           <div className="absolute right-2 flex items-center gap-1">
             {query && (
               <button
                 type="button"
-                onClick={() => setQuery("")}
+                onClick={() => {
+                  setQuery("");
+                  setDebouncedQuery("");
+                  setIsOpenResults(false);
+                  inputRef.current?.focus();
+                }}
                 className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
                 aria-label="Xóa từ khóa"
               >
@@ -153,19 +191,11 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
             >
               <SearchIcon className="h-4 w-4" />
             </button>
-            <button
-              type="button"
-              onClick={onClose}
-              className="p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
-              aria-label="Đóng tìm kiếm"
-            >
-              <CloseIcon className="h-4 w-4" />
-            </button>
           </div>
         </form>
 
         {/* Live Dropdown Results */}
-        {debouncedQuery && (
+        {isOpenResults && debouncedQuery && (
           <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white/98 backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900/98 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
             {searchResults.length === 0 ? (
               <div className="p-6 text-center">
@@ -194,7 +224,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                       <Link
                         key={product.id}
                         href={`/product/${product.id}`}
-                        onClick={onClose}
+                        onClick={() => handleCloseDropdown(true)}
                         onMouseEnter={() => setSelectedIndex(idx)}
                         className={`flex items-center gap-3.5 p-3 transition-colors ${
                           isSelected

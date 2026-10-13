@@ -3,6 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
@@ -27,12 +28,13 @@ function useIsMounted() {
 
 export default function Header() {
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isSearchOpen, setIsSearchOpen] = useState(true);
+  const isSearchOpen = true;
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
   const { categories } = useProductData();
   const { totalItems, openCartDrawer } = useCart();
   const mounted = useIsMounted();
+  const pathname = usePathname();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -116,7 +118,7 @@ export default function Header() {
           {/* Admin Settings Button */}
           <Link
             href="/admin"
-            className="p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
+            className="hidden md:inline-flex p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
             title="Quản lý sản phẩm (Admin)"
             aria-label="Quản lý sản phẩm"
           >
@@ -138,11 +140,39 @@ export default function Header() {
       </div>
 
       {/* Live Search Dropdown */}
-      <LiveSearchDropdown
-        isOpen={isSearchOpen}
-        // onClose={() => setIsSearchOpen(false)}
-        onClose={() => { }}
-      />
+      <LiveSearchDropdown isOpen={isSearchOpen} />
+
+      {/* Mobile Quick Category Bar */}
+      <div className="lg:hidden border-t border-zinc-200/70 bg-white/95 px-3 py-2 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/95 shadow-2xs overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-2 whitespace-nowrap min-w-max">
+          <Link
+            href="/"
+            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+              pathname === "/"
+                ? "bg-indigo-600 text-white shadow-xs"
+                : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+            }`}
+          >
+            Tất cả
+          </Link>
+          {categories.map((category) => {
+            const isActive = pathname === `/category/${category.id}`;
+            return (
+              <Link
+                key={category.id || category.name}
+                href={`/category/${category.id}`}
+                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                  isActive
+                    ? "bg-indigo-600 text-white shadow-xs"
+                    : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
+                }`}
+              >
+                {category.name}
+              </Link>
+            );
+          })}
+        </div>
+      </div>
 
       {/* Mobile Menu */}
       {isMenuOpen && (
