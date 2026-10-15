@@ -41,6 +41,7 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
         : `${baseUrl}${product.images[0]}`)
     : `${baseUrl}/logo.jpg`;
 
+  const productUrl = `${baseUrl}/product/${product.id}`;
   const description = product.description
     ? product.description.slice(0, 160)
     : "Hàng nội địa Nhật Bản chính hãng, cam kết chất lượng 100%.";
@@ -48,10 +49,21 @@ export async function generateMetadata({ params }: Props): Promise<Metadata> {
   return {
     title: `${product.name} - Japan Shop`,
     description,
+    keywords: [
+      product.name,
+      "dung dịch vệ sinh cépee",
+      "petit shower clean",
+      "hàng nội địa Nhật",
+      "Japan Shop",
+      "chính hãng",
+    ],
+    alternates: {
+      canonical: productUrl,
+    },
     openGraph: {
       title: `${product.name} - Japan Shop`,
       description,
-      url: `${baseUrl}/product/${product.id}`,
+      url: productUrl,
       siteName: "Japan Shop",
       locale: "vi_VN",
       type: "website",
