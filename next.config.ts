@@ -1,17 +1,12 @@
 import type { NextConfig } from "next";
 
-const isGitHubActions = process.env.GITHUB_ACTIONS === "true";
-const isProd = process.env.NODE_ENV === "production" || isGitHubActions;
-const repoName = "c3-shop";
-
-// Ưu tiên NEXT_PUBLIC_BASE_PATH nếu được set, hoặc tự động gán /c3-shop khi ở production/CI
-const basePath = process.env.NEXT_PUBLIC_BASE_PATH !== undefined
-  ? process.env.NEXT_PUBLIC_BASE_PATH
-  : (isProd ? `/${repoName}` : "");
+// basePath chỉ dùng khi được truyền cụ thể (như GitHub Pages /website).
+// Mặc định trên Cloudflare Pages, Custom domain hoặc Local luôn là "" (root).
+const basePath = process.env.NEXT_PUBLIC_BASE_PATH || "";
 
 const nextConfig: NextConfig = {
   output: "export",
-  basePath: basePath,
+  basePath: basePath || undefined,
   assetPrefix: basePath ? `${basePath}/` : undefined,
   env: {
     NEXT_PUBLIC_BASE_PATH: basePath,
@@ -23,3 +18,4 @@ const nextConfig: NextConfig = {
 };
 
 export default nextConfig;
+
