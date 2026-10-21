@@ -5,8 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { useProductData } from "@/context/ProductDataContext";
-import { Product } from "@/data/products";
-import { getProductPricing } from "@/types/promotion";
+import { getProductPricing, calculateCartTotals } from "@/types/promotion";
 import { getAssetPath } from "@/utils/assetPath";
 import CloseIcon from "./icons/CloseIcon";
 import TrashIcon from "./icons/TrashIcon";
@@ -18,7 +17,6 @@ export default function CartDrawer() {
   const {
     items,
     totalItems,
-    totalPrice,
     isCartDrawerOpen,
     closeCartDrawer,
     updateQuantity,
@@ -26,9 +24,13 @@ export default function CartDrawer() {
   } = useCart();
   const { promotion, isPromotionActive } = useProductData();
 
-  const hasPromo = isPromotionActive && (promotion?.discountPercent || 0) > 0;
-  const discountAmount = hasPromo ? Math.floor((totalPrice * (promotion.discountPercent || 10)) / 100 / 1000) * 1000 : 0;
-  const drawerTotal = Math.max(0, totalPrice - discountAmount);
+  const {
+    originalSubtotal: totalPrice,
+    effectiveSubtotal: drawerTotal,
+    discountAmount,
+    hasPromo,
+    promoPercent,
+  } = calculateCartTotals(items, promotion, isPromotionActive);
 
   // Close drawer on Escape key
   useEffect(() => {
@@ -188,9 +190,9 @@ export default function CartDrawer() {
                     {formatPrice(totalPrice)}
                   </span>
                 </div>
-                {hasPromo && (
+                {hasPromo && discountAmount > 0 && (
                   <div className="flex items-center justify-between text-rose-600 dark:text-rose-400 font-bold bg-rose-50 dark:bg-rose-950/40 px-2 py-1 rounded">
-                    <span>{promotion?.name || "Ưu đãi hot"} (-{promotion?.discountPercent || 10}%):</span>
+                    <span>{promotion?.name || "Ưu đãi hot"} (-{promoPercent}%):</span>
                     <span>-{formatPrice(discountAmount)}</span>
                   </div>
                 )}

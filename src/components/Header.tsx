@@ -16,6 +16,7 @@ import CloseIcon from "./icons/CloseIcon";
 import SettingsIcon from "./icons/SettingsIcon";
 import LiveSearchDropdown from "./LiveSearchDropdown";
 import { getAssetPath } from "@/utils/assetPath";
+import { verifyAdminSession } from "@/utils/security";
 
 const emptySubscribe = () => () => {};
 function useIsMounted() {
@@ -35,6 +36,7 @@ export default function Header() {
   const { totalItems, openCartDrawer } = useCart();
   const mounted = useIsMounted();
   const pathname = usePathname();
+  const isAdminLoggedIn = mounted && verifyAdminSession();
 
   return (
     <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
@@ -115,15 +117,17 @@ export default function Header() {
             <div className="h-10 w-10" />
           )}
 
-          {/* Admin Settings Button */}
-          <Link
-            href="/admin"
-            className="hidden md:inline-flex p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
-            title="Quản lý sản phẩm (Admin)"
-            aria-label="Quản lý sản phẩm"
-          >
-            <SettingsIcon className="h-6 w-6" />
-          </Link>
+          {/* Admin Settings Button (Only visible when Admin is logged in) */}
+          {isAdminLoggedIn && (
+            <Link
+              href="/admin"
+              className="hidden md:inline-flex p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
+              title="Quản lý sản phẩm (Admin)"
+              aria-label="Quản lý sản phẩm"
+            >
+              <SettingsIcon className="h-6 w-6" />
+            </Link>
+          )}
 
           {/* Mobile Menu Button */}
           <button
@@ -260,13 +264,15 @@ export default function Header() {
                 <span className="text-[10px] px-2 py-0.5 rounded-full bg-rose-600 text-white">Gọi ngay</span>
               </a>
 
-              <Link
-                href="/admin"
-                onClick={() => setIsMenuOpen(false)}
-                className="rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100 transition-colors"
-              >
-                ⚙️ Quản trị cửa hàng (Admin)
-              </Link>
+              {isAdminLoggedIn && (
+                <Link
+                  href="/admin"
+                  onClick={() => setIsMenuOpen(false)}
+                  className="rounded-xl px-3 py-2 text-xs font-bold text-indigo-600 dark:text-indigo-400 bg-indigo-50/50 dark:bg-indigo-950/40 hover:bg-indigo-100 transition-colors"
+                >
+                  ⚙️ Quản trị cửa hàng (Admin)
+                </Link>
+              )}
             </div>
           </div>
         </div>

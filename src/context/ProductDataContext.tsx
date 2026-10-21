@@ -9,130 +9,16 @@ import { PromotionCampaign, DbPromotionRow, isCampaignActive, DEFAULT_PROMOTION 
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 
 
-// Database row mappings
-interface DbProductRow {
-  id: string;
-  name: string;
-  description: string | null;
-  image?: string | null;
-  images?: string[] | null;
-  image_bg: string | null;
-  price: number;
-  old_price: number | null;
-  rating: number;
-  reviews: number;
-  tag: string | null;
-  stock: number;
-  ingredients: string | null;
-  visible?: boolean | null;
-  is_visible?: boolean | null;
-}
-
-interface DbCategoryRow {
-  id: string;
-  name: string;
-  description: string | null;
-  banner_gradient: string | null;
-  badge_color: string | null;
-  icon_name: string | null;
-  item_count_text: string | null;
-  subcategories: string[] | null;
-  order_num?: number | null;
-}
-
-interface DbCategoryProductRow {
-  id?: number | null;
-  category_id: string;
-  product_id: string;
-  order_num?: number | null;
-}
-
-interface DbProductOrderRow {
-  product_id: string;
-  order_num: number;
-  banner?: string | null;
-}
-
-function mapDbProduct(row: DbProductRow): Product {
-  const images = Array.isArray(row.images) && row.images.length > 0
-    ? row.images
-    : (row.image ? [row.image] : []);
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description || "",
-    ingredients: row.ingredients || undefined,
-    images,
-    imageBg: row.image_bg || undefined,
-    price: Number(row.price) || 0,
-    oldPrice: row.old_price !== null && row.old_price !== undefined ? Number(row.old_price) : undefined,
-    rating: Number(row.rating) || 5.0,
-    reviews: Number(row.reviews) || 0,
-    tag: row.tag || undefined,
-    stock: Number(row.stock) || 0,
-    visible: row.visible !== false && row.is_visible !== false,
-  };
-}
-
-function mapProductToDb(p: Product) {
-  const images = Array.isArray(p.images) && p.images.length > 0
-    ? p.images
-    : [];
-  return {
-    id: p.id,
-    name: p.name,
-    description: p.description || "",
-    ingredients: p.ingredients ?? null,
-    image: images[0] || "",
-    images,
-    image_bg: p.imageBg || "",
-    price: p.price,
-    old_price: p.oldPrice ?? null,
-    rating: p.rating ?? 5.0,
-    reviews: p.reviews ?? 0,
-    tag: p.tag ?? null,
-    stock: p.stock ?? 0,
-    visible: p.visible !== false,
-  };
-}
-
-function mapDbCategory(row: DbCategoryRow): Category {
-  const parseOrder = () => {
-    if (row.order_num !== null && row.order_num !== undefined) {
-      return Number(row.order_num);
-    }
-    const numMatch = row.id.match(/\d+/);
-    return numMatch ? parseInt(numMatch[0], 10) : 999;
-  };
-
-  return {
-    id: row.id,
-    name: row.name,
-    description: row.description || "",
-    bannerGradient: row.banner_gradient || "from-indigo-600 to-violet-700",
-    badgeColor: row.badge_color || "bg-indigo-500",
-    iconName: (row.icon_name || "SparklesIcon") as Category["iconName"],
-    itemCountText: row.item_count_text || "0 sản phẩm",
-    subcategories: Array.isArray(row.subcategories) ? row.subcategories : [],
-    order: parseOrder(),
-  };
-}
-
-function mapCategoryToDb(c: Category) {
-  const numMatch = c.id.match(/\d+/);
-  const defaultOrder = numMatch ? parseInt(numMatch[0], 10) : 0;
-  return {
-    id: c.id,
-    name: c.name,
-    description: c.description || "",
-    banner_gradient: c.bannerGradient || "from-indigo-600 to-violet-700",
-    badge_color: c.badgeColor || "bg-indigo-500",
-    icon_name: c.iconName || "SparklesIcon",
-    item_count_text: c.itemCountText || "0 sản phẩm",
-    subcategories: c.subcategories || [],
-    order_num: c.order !== undefined ? Number(c.order) : defaultOrder,
-  };
-}
+import {
+  DbProductRow,
+  DbCategoryRow,
+  DbCategoryProductRow,
+  DbProductOrderRow,
+  mapDbProductToProduct as mapDbProduct,
+  mapProductToDbRow as mapProductToDb,
+  mapDbCategoryToCategory as mapDbCategory,
+  mapCategoryToDbRow as mapCategoryToDb,
+} from "@/services/supabaseService";
 
 export type SupabaseConnectionStatus = "connected" | "not_configured" | "error" | "loading";
 
@@ -481,7 +367,11 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
 
   // --- Product CRUD with Supabase sync ---
   const addProduct = async (item: Omit<Product, "id"> & { id?: string; order?: number; categoryId?: string }) => {
-    const nextId = item.id?.trim() || String(Date.now());
+    const maxNumericId = products.reduce((max, p) => {
+      const num = parseInt(String(p.id).trim(), 10);
+      return !isNaN(num) && num < 100000 && num > max ? num : max;
+    }, 0);
+    const nextId = item.id?.trim() || String(maxNumericId + 1);
     const images = Array.isArray(item.images) && item.images.length > 0
       ? item.images
       : [];
@@ -498,6 +388,7 @@ export function ProductDataProvider({ children }: { children: React.ReactNode })
       tag: item.tag,
       stock: item.stock,
       ingredients: item.ingredients,
+      visible: item.visible !== false,
     };
 
     const newProducts = [...products, newProduct];

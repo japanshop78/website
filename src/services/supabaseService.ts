@@ -1,4 +1,3 @@
-import { SupabaseClient } from "@supabase/supabase-js";
 import { supabase, isSupabaseConfigured } from "@/lib/supabase";
 import { Product } from "@/data/products";
 import { Category } from "@/data/categories";
@@ -42,8 +41,10 @@ export interface DbCategoryRow {
 }
 
 export interface DbCategoryProductRow {
+  id?: number | null;
   category_id: string;
   product_id: string;
+  order_num?: number | null;
 }
 
 export interface DbProductOrderRow {
@@ -205,6 +206,7 @@ export const supabaseService = {
     if (updates.reviews !== undefined) payload.reviews = updates.reviews;
     if (updates.tag !== undefined) payload.tag = updates.tag;
     if (updates.stock !== undefined) payload.stock = updates.stock;
+    if (updates.visible !== undefined) payload.visible = updates.visible;
 
     const { error } = await supabase.from("products").update(payload).eq("id", id);
     if (error) {
@@ -488,7 +490,10 @@ export const supabaseService = {
       } catch (err: unknown) {
         const msg = err instanceof Error ? err.message : String(err);
         if (msg.includes("order_num")) {
-          const fallbackChunk = chunk.map(({ order_num, ...rest }) => rest);
+          const fallbackChunk = chunk.map(({ order_num: _omitted, ...rest }) => {
+            void _omitted;
+            return rest;
+          });
           const { error } = await supabase.from("category_products").upsert(fallbackChunk, { onConflict: "category_id,product_id" });
           if (error) throw error;
         } else {

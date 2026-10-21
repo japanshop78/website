@@ -11,13 +11,14 @@ import DiscountManagement from "./components/DiscountManagement";
 import RakutenManagement from "./components/RakutenManagement";
 import OrderManagement from "./components/OrderManagement";
 
+import { supabase } from "@/lib/supabase";
 import {
   sha256,
-  DEFAULT_ADMIN_PASSKEY_HASH,
-  LEGACY_ADMIN_PASSKEY_HASH,
   verifyAdminSession,
   saveAdminSession,
   clearAdminSession,
+  getLoginLockoutRemainingSeconds,
+  recordFailedLoginAttempt,
 } from "@/utils/security";
 
 type AdminTab =
@@ -31,9 +32,12 @@ type AdminTab =
 
 export default function AdminPage() {
   const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+  const [emailInput, setEmailInput] = useState("");
   const [passkeyInput, setPasskeyInput] = useState("");
   const [showPasskey, setShowPasskey] = useState(false);
+  const [isLoggingIn, setIsLoggingIn] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [lockoutSeconds, setLockoutSeconds] = useState(0);
   const [rememberDevice, setRememberDevice] = useState(true);
   const [activeTab, setActiveTab] = useState<AdminTab>("products");
 
@@ -52,46 +56,117 @@ export default function AdminPage() {
     refreshFromSupabase,
   } = useProductData();
 
-  // Check authentication status on mount with session expiration
+  // Check authentication status on mount (Supabase Auth session OR local AdminSession)
   useEffect(() => {
-    const isAuthed = verifyAdminSession();
-    setIsAuthenticated(isAuthed);
+    let mounted = true;
+
+    async function checkAuth() {
+      setLockoutSeconds(getLoginLockoutRemainingSeconds());
+
+      if (supabase) {
+        const { data } = await supabase.auth.getSession();
+        if (data?.session && mounted) {
+          saveAdminSession(true, undefined, data.session.user.email);
+          setIsAuthenticated(true);
+          return;
+        }
+      }
+
+      if (mounted) {
+        setIsAuthenticated(verifyAdminSession());
+      }
+    }
+
+    checkAuth();
+
+    return () => {
+      mounted = false;
+    };
   }, []);
+
+  // Countdown timer when locked out due to brute-force attempts
+  useEffect(() => {
+    if (lockoutSeconds <= 0) return;
+    const timer = setInterval(() => {
+      const remaining = getLoginLockoutRemainingSeconds();
+      setLockoutSeconds(remaining);
+      if (remaining <= 0) {
+        setErrorMsg("");
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+  }, [lockoutSeconds]);
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
     setErrorMsg("");
 
-    const inputTrimmed = passkeyInput.trim();
-
-    if (!inputTrimmed) {
-      setErrorMsg("Vui lòng nhập mã passkey quản trị!");
+    const remainingLock = getLoginLockoutRemainingSeconds();
+    if (remainingLock > 0) {
+      setLockoutSeconds(remainingLock);
+      setErrorMsg(`Tạm khóa đăng nhập do nhập sai nhiều lần. Vui lòng thử lại sau ${remainingLock} giây.`);
       return;
     }
 
+    const inputTrimmed = passkeyInput.trim();
+    const emailTrimmed = emailInput.trim();
+
+    if (!inputTrimmed) {
+      setErrorMsg("Vui lòng nhập mật khẩu / mã passkey quản trị!");
+      return;
+    }
+
+    setIsLoggingIn(true);
+
     try {
       const inputHash = await sha256(inputTrimmed);
-      const configuredHash = process.env.NEXT_PUBLIC_ADMIN_PASSKEY_HASH;
 
+      // 1. Ưu tiên xác thực qua Supabase Auth (Signed JWT) nếu đã cấu hình Supabase
+      if (supabase) {
+        const { data, error } = await supabase.auth.signInWithPassword({
+          email: emailTrimmed,
+          password: inputTrimmed,
+        });
+
+        if (!error && data?.session) {
+          saveAdminSession(rememberDevice, inputHash, data.user?.email || emailTrimmed);
+          setIsAuthenticated(true);
+          setIsLoggingIn(false);
+          return;
+        }
+      }
+
+      // 2. Fallback tương thích ngược với Passkey Hash (nếu chưa tạo User trong Supabase Auth)
+      const configuredHash = process.env.NEXT_PUBLIC_ADMIN_PASSKEY_HASH;
       const isMatch =
         (configuredHash && inputHash === configuredHash) ||
-        inputHash === DEFAULT_ADMIN_PASSKEY_HASH ||
-        inputHash === LEGACY_ADMIN_PASSKEY_HASH ||
-        // Fallback backward-compatibility check if someone set plaintext env variable
         (process.env.NEXT_PUBLIC_ADMIN_PASSKEY && inputTrimmed === process.env.NEXT_PUBLIC_ADMIN_PASSKEY);
 
       if (isMatch) {
-        saveAdminSession(rememberDevice);
+        saveAdminSession(rememberDevice, inputHash, emailTrimmed);
         setIsAuthenticated(true);
       } else {
-        setErrorMsg("Mã passkey không chính xác! Vui lòng thử lại.");
+        const attempt = recordFailedLoginAttempt();
+        if (attempt.locked) {
+          setLockoutSeconds(attempt.lockoutSeconds);
+          setErrorMsg(`Bạn đã nhập sai quá 5 lần! Tạm khóa trong ${attempt.lockoutSeconds} giây.`);
+        } else {
+          setErrorMsg(
+            `Thông tin xác thực không chính xác! (Còn ${attempt.remainingAttempts} lần thử)`
+          );
+        }
       }
     } catch {
       setErrorMsg("Lỗi xác thực hệ thống. Vui lòng thử lại!");
+    } finally {
+      setIsLoggingIn(false);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
+    if (supabase) {
+      await supabase.auth.signOut().catch(() => {});
+    }
     clearAdminSession();
     setIsAuthenticated(false);
     setPasskeyInput("");
@@ -130,7 +205,7 @@ export default function AdminPage() {
     );
   }
 
-  // Passkey Lock Screen
+  // Passkey / Supabase Auth Lock Screen
   if (!isAuthenticated) {
     return (
       <div className="min-h-screen flex flex-col justify-center items-center bg-zinc-50 dark:bg-zinc-950 p-4 sm:p-6">
@@ -144,7 +219,7 @@ export default function AdminPage() {
               Bảo Mật Quản Trị
             </h2>
             <p className="mt-1.5 text-xs text-zinc-500 dark:text-zinc-400">
-              Vui lòng nhập mã Passkey để truy cập bảng quản lý Japan Shop
+              Đăng nhập tài khoản Admin (Supabase Auth) hoặc mã Passkey
             </p>
           </div>
 
@@ -152,20 +227,37 @@ export default function AdminPage() {
           <form onSubmit={handleLogin} className="mt-6 space-y-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1.5">
-                Mã Passkey Admin
+                Email Quản Trị
+              </label>
+              <input
+                type="email"
+                value={emailInput}
+                onChange={(e) => {
+                  setEmailInput(e.target.value);
+                  if (errorMsg) setErrorMsg("");
+                }}
+                placeholder="admin@japanshop78.pages"
+                className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-4 py-2.5 text-sm text-zinc-900 dark:text-white outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all"
+              />
+            </div>
+
+            <div>
+              <label className="block text-xs font-bold uppercase tracking-wider text-zinc-700 dark:text-zinc-300 mb-1.5">
+                Mật Khẩu / Mã Passkey Admin
               </label>
               <div className="relative">
                 <input
                   type={showPasskey ? "text" : "password"}
                   autoFocus
                   required
+                  disabled={lockoutSeconds > 0}
                   value={passkeyInput}
                   onChange={(e) => {
                     setPasskeyInput(e.target.value);
                     if (errorMsg) setErrorMsg("");
                   }}
-                  placeholder="Nhập mã passkey..."
-                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-4 py-3 text-sm text-zinc-900 dark:text-white outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all pr-10 font-mono"
+                  placeholder="Nhập mật khẩu hoặc passkey..."
+                  className="w-full rounded-xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 px-4 py-3 text-sm text-zinc-900 dark:text-white outline-none focus:border-indigo-500 focus:bg-white dark:focus:bg-zinc-900 transition-all pr-14 font-mono disabled:opacity-50"
                 />
                 <button
                   type="button"
@@ -204,9 +296,14 @@ export default function AdminPage() {
 
             <button
               type="submit"
-              className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-500 transition-all cursor-pointer mt-2"
+              disabled={isLoggingIn || lockoutSeconds > 0}
+              className="w-full rounded-xl bg-indigo-600 py-3 text-sm font-bold text-white shadow-md hover:bg-indigo-500 transition-all cursor-pointer mt-2 disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              🔓 Xác nhận mở khóa
+              {lockoutSeconds > 0
+                ? `⏳ Tạm khóa (${lockoutSeconds}s)`
+                : isLoggingIn
+                ? "Đang xác thực..."
+                : "🔓 Xác nhận mở khóa"}
             </button>
           </form>
         </div>
@@ -532,4 +629,5 @@ export default function AdminPage() {
     </div>
   );
 }
+
 

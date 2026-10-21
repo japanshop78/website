@@ -53,16 +53,23 @@ export default function ProductDetailPage({ product, related }: Props) {
   const [added, setAdded] = useState(false);
   const [activeImageIndex, setActiveImageIndex] = useState(0);
 
+  const {
+    effectivePrice,
+    effectiveOldPrice,
+    discountPercent: discount,
+    savingsAmount,
+  } = getProductPricing(currentProduct, promotion, isPromotionActive);
+
   // Kích hoạt sự kiện ViewContent cho Meta Pixel & GA4 khi xem sản phẩm
   useEffect(() => {
     if (currentProduct?.id) {
       analytics.trackViewItem({
         id: currentProduct.id,
         name: currentProduct.name,
-        price: currentProduct.price,
+        price: effectivePrice,
       });
     }
-  }, [currentProduct?.id, currentProduct?.name, currentProduct?.price]);
+  }, [currentProduct?.id, currentProduct?.name, effectivePrice]);
 
   const imageList =
     currentProduct.images && currentProduct.images.length > 0
@@ -75,7 +82,7 @@ export default function ProductDetailPage({ product, related }: Props) {
     analytics.trackAddToCart({
       id: currentProduct.id,
       name: currentProduct.name,
-      price: currentProduct.price,
+      price: effectivePrice,
     }, quantity);
     setAdded(true);
     setTimeout(() => setAdded(false), 2000);
@@ -86,18 +93,10 @@ export default function ProductDetailPage({ product, related }: Props) {
     analytics.trackAddToCart({
       id: currentProduct.id,
       name: currentProduct.name,
-      price: currentProduct.price,
+      price: effectivePrice,
     }, quantity);
     router.push("/cart");
   };
-
-
-  const {
-    effectivePrice,
-    effectiveOldPrice,
-    discountPercent: discount,
-    savingsAmount,
-  } = getProductPricing(currentProduct, promotion, isPromotionActive);
 
   const category = categories.find(
     (c) => c.id.toLowerCase() === currentProductCategoryId.toLowerCase()
@@ -304,7 +303,7 @@ export default function ProductDetailPage({ product, related }: Props) {
                 </li>
                 <li className="flex items-start gap-2">
                   <span className="text-red-600 dark:text-red-400 font-bold leading-tight">•</span>
-                  <span>Cam kết chính hãng 100%</span>
+                  <span>Cam kết chính hãng nội địa Nhật Bản 100%</span>
                 </li>
               </ul>
             </div>

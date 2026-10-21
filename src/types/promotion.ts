@@ -11,6 +11,9 @@ export interface PromotionCampaign {
   updatedAt?: string;
 }
 
+export const FREE_SHIPPING_THRESHOLD = 1000000;
+export const DEFAULT_SHIPPING_FEE = 25000;
+
 export const DEFAULT_PROMOTION: PromotionCampaign = {
   id: "active_campaign",
   name: "Ưu đãi hot 10/10",
@@ -53,11 +56,30 @@ export function isCampaignActive(promo: PromotionCampaign | null | undefined): b
   if (!promo || !promo.isActive) return false;
   const now = new Date().getTime();
   const end = new Date(promo.endDate).getTime();
-  
+
   // Nếu ngày hợp lệ, check khoảng thời gian.
   // Đồng thời cho phép nếu hiện tại đang trong khoảng hoặc nếu start nằm trong tương lai gần nhưng isActive = true
   // Để tiện nhất: nếu now <= end (chưa hết hạn) và isActive = true thì coi là hợp lệ.
   return now <= end;
+}
+
+/**
+ * Định dạng khoảng thời gian chiến dịch (VD: "từ 10/10 đến 20/10")
+ */
+export function formatPromoDateRange(startDate?: string, endDate?: string): string {
+  const fmt = (dateStr?: string) => {
+    if (!dateStr) return "";
+    const d = new Date(dateStr);
+    if (isNaN(d.getTime())) return "";
+    const day = String(d.getDate()).padStart(2, "0");
+    const month = String(d.getMonth() + 1).padStart(2, "0");
+    return `${day}/${month}`;
+  };
+  const start = fmt(startDate);
+  const end = fmt(endDate);
+  if (start && end) return `từ ${start} đến ${end}`;
+  if (end) return `đến ${end}`;
+  return "từ 10/10 đến 20/10";
 }
 
 export interface ProductPricing {
@@ -118,5 +140,58 @@ export function getProductPricing(
     discountPercent: totalPercent > 0 ? totalPercent : null,
     savingsAmount,
     hasPromo: true,
+  };
+}
+
+export interface CartTotalsSummary {
+  originalSubtotal: number;
+  effectiveSubtotal: number;
+  discountAmount: number;
+  hasPromo: boolean;
+  promoPercent: number;
+  isFreeShip: boolean;
+  shippingFee: number;
+  finalTotal: number;
+}
+
+/**
+ * Tính toán đồng bộ tổng tiền giỏ hàng (dùng chung cho CartDrawer và CartPage)
+ * để đảm bảo tổng thành tiền từng dòng khớp tuyệt đối với tổng thanh toán.
+ */
+export function calculateCartTotals(
+  items: { product: { price: number; oldPrice?: number }; quantity: number }[],
+  promotion: PromotionCampaign | null | undefined,
+  isPromotionActive: boolean
+): CartTotalsSummary {
+  const hasPromo = Boolean(isPromotionActive && promotion && (promotion.discountPercent || 0) > 0);
+  const promoPercent = hasPromo && promotion ? promotion.discountPercent : 0;
+
+  let originalSubtotal = 0;
+  let effectiveSubtotal = 0;
+
+  for (const item of items) {
+    const pricing = getProductPricing(item.product, promotion, isPromotionActive);
+    originalSubtotal += item.product.price * item.quantity;
+    effectiveSubtotal += pricing.effectivePrice * item.quantity;
+  }
+
+  const discountAmount = Math.max(0, originalSubtotal - effectiveSubtotal);
+  const isFreeShip = Boolean(
+    (isPromotionActive && promotion?.isFreeship) ||
+    effectiveSubtotal >= FREE_SHIPPING_THRESHOLD ||
+    effectiveSubtotal === 0
+  );
+  const shippingFee = isFreeShip ? 0 : DEFAULT_SHIPPING_FEE;
+  const finalTotal = Math.max(0, effectiveSubtotal + shippingFee);
+
+  return {
+    originalSubtotal,
+    effectiveSubtotal,
+    discountAmount,
+    hasPromo,
+    promoPercent,
+    isFreeShip,
+    shippingFee,
+    finalTotal,
   };
 }
