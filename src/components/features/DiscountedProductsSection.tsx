@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/data/products";
@@ -8,7 +8,8 @@ import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
 import { analytics } from "@/utils/analytics";
-import { getProductPricing } from "@/types/promotion";
+import { getProductPricing, formatPromoDateRange } from "@/types/promotion";
+import { useInfiniteCarousel } from "@/hooks/useInfiniteCarousel";
 import {
   StarIcon,
   PlusIcon,
@@ -27,9 +28,6 @@ const HOTLINE_MARQUEE_ITEMS = [
 
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
-
-const calcDiscount = (price: number, oldPrice: number) =>
-  Math.round(((oldPrice - price) / oldPrice) * 100);
 
 function getTimeUntilTarget(targetDateStr?: string) {
   const now = new Date().getTime();
@@ -72,126 +70,32 @@ export default function DiscountedProductsSection() {
   // Filter products by banner "discount" (or "Sản phẩm giảm giá")
   const discountedProducts = getProductsByBanner("discount", discountBannerLimit);
 
-  const [isPaused, setIsPaused] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(true);
-
-  // Responsive items per view: 5 on xl/2xl, 4 on lg, 3 on md, 2 on sm/mobile
-  const [itemsPerView, setItemsPerView] = useState(5);
-
-  useEffect(() => {
-    const handleResize = () => {
-      const w = window.innerWidth;
-      if (w >= 1280) setItemsPerView(5);
-      else if (w >= 1024) setItemsPerView(4);
-      else if (w >= 768) setItemsPerView(3);
-      else setItemsPerView(2);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Prepare infinite looping products (replicate array so it scrolls seamlessly)
-  const baseList = discountedProducts.length < 5
-    ? [...discountedProducts, ...discountedProducts]
-    : discountedProducts;
-  const listLen = baseList.length;
-  const extendedProducts = [...baseList, ...baseList, ...baseList];
-
-  const [currentIndex, setCurrentIndex] = useState(listLen);
-
-  // Keep currentIndex aligned if listLen changes
-  useEffect(() => {
-    if (listLen > 0 && (currentIndex < listLen || currentIndex >= listLen * 2)) {
-      setIsTransitioning(false);
-      setCurrentIndex(listLen);
-    }
-  }, [listLen]);
-
-  // Pause when tab is inactive/minimized, and safely re-align when user returns
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsPaused(true);
-      } else {
-        setIsPaused(false);
-        setIsTransitioning(false);
-        setCurrentIndex((prev) => (listLen > 0 ? listLen + (prev % listLen) : 0));
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [listLen]);
-
-  const handleNext = useCallback(() => {
-    if (listLen === 0) return;
-    setCurrentIndex((prev) => {
-      // Guard: if boundary was already reached or exceeded, snap back safely without runaway drift
-      if (prev >= listLen * 2) {
-        setIsTransitioning(false);
-        return listLen + 1;
-      }
-      setIsTransitioning(true);
-      return prev + 1;
-    });
-  }, [listLen]);
-
-  const handlePrev = useCallback(() => {
-    if (listLen === 0) return;
-    setCurrentIndex((prev) => {
-      if (prev <= listLen - 1) {
-        setIsTransitioning(false);
-        return listLen * 2 - 2;
-      }
-      setIsTransitioning(true);
-      return prev - 1;
-    });
-  }, [listLen]);
-
-  // Auto-play animation running from right to left every 2 seconds (pauses when tab hidden)
-  useEffect(() => {
-    if (isPaused || listLen === 0) return;
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      handleNext();
-    }, 2000);
-    return () => clearInterval(interval);
-  }, [isPaused, listLen, handleNext]);
-
-  // Seamless jump when reaching boundaries
-  const handleTransitionEnd = () => {
-    if (listLen === 0) return;
-    if (currentIndex >= listLen * 2) {
-      setIsTransitioning(false);
-      setCurrentIndex((prev) => listLen + (prev % listLen));
-    } else if (currentIndex < listLen) {
-      setIsTransitioning(false);
-      setCurrentIndex((prev) => listLen + (prev % listLen));
-    }
-  };
-
-  // Touch swipe support
-  const touchStartX = useRef<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    setIsPaused(true);
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current !== null) {
-      const diff = e.changedTouches[0].clientX - touchStartX.current;
-      if (diff < -40) handleNext();
-      else if (diff > 40) handlePrev();
-    }
-    touchStartX.current = null;
-    setIsPaused(false);
-  };
+  const {
+    itemsPerView,
+    baseList,
+    listLen,
+    extendedItems: extendedProducts,
+    currentIndex,
+    activeDotIndex,
+    isTransitioning,
+    handleNext,
+    handlePrev,
+    handleTransitionEnd,
+    handleTouchStart,
+    handleTouchEnd,
+    selectSlide,
+  } = useInfiniteCarousel({
+    items: discountedProducts,
+    autoPlayIntervalMs: 2000,
+  });
 
   const handleAdd = (product: Product) => {
+    const pricing = getProductPricing(product, promotion, isPromotionActive);
     addToCart(product, 1);
     analytics.trackAddToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: pricing.effectivePrice,
     }, 1);
     setAddedId(product.id);
     setTimeout(() => setAddedId(null), 1500);
@@ -202,7 +106,7 @@ export default function DiscountedProductsSection() {
     return null;
   }
 
-  const activeDotIndex = ((currentIndex % listLen) + listLen) % listLen;
+  const promoDateRangeText = formatPromoDateRange(promotion?.startDate, promotion?.endDate);
 
   return (
     <section id="discount-section" className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 pt-6 sm:pt-8 pb-0 text-white relative overflow-hidden shadow-inner">
@@ -219,125 +123,129 @@ export default function DiscountedProductsSection() {
               <span>{promotion?.bannerTitle || "Ưu đãi hot 🔥"}</span>
             </h2>
 
-            {/* Countdown Timer */}
-            <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg shrink-0">
-              <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
-                <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
-                <span className="hidden sm:inline">Kết thúc sau:</span>
-              </span>
-              <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white" suppressHydrationWarning>
-                {isMounted ? (
-                  <>
-                    {timeLeft.days > 0 && (
+            {isPromotionActive &&
+              <>
+                {/* Countdown Timer */}
+                <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg shrink-0">
+                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                    <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
+                    <span className="hidden sm:inline">Kết thúc sau:</span>
+                  </span>
+                  <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white" suppressHydrationWarning>
+                    {isMounted ? (
                       <>
+                        {timeLeft.days > 0 && (
+                          <>
+                            <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                              {timeLeft.days}N
+                            </span>
+                            <span className="text-amber-300 font-bold">:</span>
+                          </>
+                        )}
                         <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                          {timeLeft.days}N
+                          {formatTime(timeLeft.hours)}
                         </span>
                         <span className="text-amber-300 font-bold">:</span>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                          {formatTime(timeLeft.minutes)}
+                        </span>
+                        <span className="text-amber-300 font-bold">:</span>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                          {formatTime(timeLeft.seconds)}
+                        </span>
+                      </>
+                    ) : (
+                      <>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                        <span className="text-amber-300 font-bold">:</span>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                        <span className="text-amber-300 font-bold">:</span>
+                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
                       </>
                     )}
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                      {formatTime(timeLeft.hours)}
-                    </span>
-                    <span className="text-amber-300 font-bold">:</span>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                      {formatTime(timeLeft.minutes)}
-                    </span>
-                    <span className="text-amber-300 font-bold">:</span>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                      {formatTime(timeLeft.seconds)}
-                    </span>
-                  </>
-                ) : (
-                  <>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                    <span className="text-amber-300 font-bold">:</span>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                    <span className="text-amber-300 font-bold">:</span>
-                    <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                  </>
-                )}
-              </div>
-            </div>
-
-            {/* Seamless Scrolling Marquee Text */}
-            <div className="w-full lg:w-auto lg:flex-1 overflow-hidden py-1 select-none group/marquee min-w-0">
-              <div className="animate-marquee flex items-center whitespace-nowrap">
-                {/* Instance 1 */}
-                <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12">
-                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                    <span className="text-lg sm:text-xl">🔥</span>
-                    <span className="text-amber-100 font-extrabold">
-                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                    </span>
-                    <span className="text-white/40 font-normal">&</span>
-                    <span className="text-rose-100">
-                      Miễn phí vận chuyển
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                      từ 10/10 đến 20/10
-                    </span>
-                    <span className="text-lg sm:text-xl">✨</span>
-                  </span>
-
-                  <span className="text-white/35 text-base font-normal">✦</span>
-
-                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                    <span className="text-lg sm:text-xl">🎉</span>
-                    <span className="text-amber-100 font-extrabold">
-                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                    </span>
-                    <span className="text-white/40 font-normal">&</span>
-                    <span className="text-rose-100">
-                      Miễn phí vận chuyển
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                      từ 10/10 đến 20/10
-                    </span>
-                    <span className="text-lg sm:text-xl">🎁</span>
-                  </span>
-
-                  <span className="text-white/35 text-base font-normal">✦</span>
+                  </div>
                 </div>
 
-                {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
-                <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12" aria-hidden="true">
-                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                    <span className="text-lg sm:text-xl">🔥</span>
-                    <span className="text-amber-100 font-extrabold">
-                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                    </span>
-                    <span className="text-white/40 font-normal">&</span>
-                    <span className="text-rose-100">
-                      Miễn phí vận chuyển
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                      từ 10/10 đến 20/10
-                    </span>
-                    <span className="text-lg sm:text-xl">✨</span>
-                  </span>
+                {/* Seamless Scrolling Marquee Text */}
+                <div className="w-full lg:w-auto lg:flex-1 overflow-hidden py-1 select-none group/marquee min-w-0">
+                  <div className="animate-marquee flex items-center whitespace-nowrap">
+                    {/* Instance 1 */}
+                    <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12">
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                        <span className="text-lg sm:text-xl">🔥</span>
+                        <span className="text-amber-100 font-extrabold">
+                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                        </span>
+                        <span className="text-white/40 font-normal">&</span>
+                        <span className="text-rose-100">
+                          Miễn phí vận chuyển
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
+                        </span>
+                        <span className="text-lg sm:text-xl">✨</span>
+                      </span>
 
-                  <span className="text-white/35 text-base font-normal">✦</span>
+                      <span className="text-white/35 text-base font-normal">✦</span>
 
-                  <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                    <span className="text-lg sm:text-xl">🎉</span>
-                    <span className="text-amber-100 font-extrabold">
-                      Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                    </span>
-                    <span className="text-white/40 font-normal">&</span>
-                    <span className="text-rose-100">
-                      Miễn phí vận chuyển
-                    </span>
-                    <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                      từ 10/10 đến 20/10
-                    </span>
-                    <span className="text-lg sm:text-xl">🎁</span>
-                  </span>
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                        <span className="text-lg sm:text-xl">🎉</span>
+                        <span className="text-amber-100 font-extrabold">
+                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                        </span>
+                        <span className="text-white/40 font-normal">&</span>
+                        <span className="text-rose-100">
+                          Miễn phí vận chuyển
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
+                        </span>
+                        <span className="text-lg sm:text-xl">🎁</span>
+                      </span>
 
-                  <span className="text-white/35 text-base font-normal">✦</span>
+                      <span className="text-white/35 text-base font-normal">✦</span>
+                    </div>
+
+                    {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
+                    <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12" aria-hidden="true">
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                        <span className="text-lg sm:text-xl">🔥</span>
+                        <span className="text-amber-100 font-extrabold">
+                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                        </span>
+                        <span className="text-white/40 font-normal">&</span>
+                        <span className="text-rose-100">
+                          Miễn phí vận chuyển
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
+                        </span>
+                        <span className="text-lg sm:text-xl">✨</span>
+                      </span>
+
+                      <span className="text-white/35 text-base font-normal">✦</span>
+
+                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                        <span className="text-lg sm:text-xl">🎉</span>
+                        <span className="text-amber-100 font-extrabold">
+                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
+                        </span>
+                        <span className="text-white/40 font-normal">&</span>
+                        <span className="text-rose-100">
+                          Miễn phí vận chuyển
+                        </span>
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
+                        </span>
+                        <span className="text-lg sm:text-xl">🎁</span>
+                      </span>
+
+                      <span className="text-white/35 text-base font-normal">✦</span>
+                    </div>
+                  </div>
                 </div>
-              </div>
-            </div>
+              </>
+            }
           </div>
 
           {/* Navigation Controls in Header */}
@@ -509,11 +417,10 @@ export default function DiscountedProductsSection() {
                           <button
                             type="button"
                             onClick={() => handleAdd(product)}
-                            className={`shrink-0 rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${
-                              isJustAdded
-                                ? "bg-emerald-600 text-white scale-110"
-                                : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow-rose-600/30 hover:scale-105 active:scale-95"
-                            }`}
+                            className={`shrink-0 rounded-full p-2 transition-all duration-200 cursor-pointer shadow-xs ${isJustAdded
+                              ? "bg-emerald-600 text-white scale-110"
+                              : "bg-rose-600 hover:bg-rose-700 text-white shadow-sm hover:shadow-rose-600/30 hover:scale-105 active:scale-95"
+                              }`}
                             title={isJustAdded ? "Đã thêm vào giỏ!" : "Thêm vào giỏ hàng"}
                           >
                             {isJustAdded ? (
@@ -537,15 +444,11 @@ export default function DiscountedProductsSection() {
               <button
                 key={i}
                 type="button"
-                onClick={() => {
-                  setIsTransitioning(true);
-                  setCurrentIndex(listLen + i);
-                }}
-                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${
-                  activeDotIndex === i
-                    ? "w-6 bg-white shadow-xs"
-                    : "w-1.5 bg-white/40 hover:bg-white/70"
-                }`}
+                onClick={() => selectSlide(i)}
+                className={`h-1.5 rounded-full transition-all duration-300 cursor-pointer ${activeDotIndex === i
+                  ? "w-6 bg-white shadow-xs"
+                  : "w-1.5 bg-white/40 hover:bg-white/70"
+                  }`}
                 aria-label={`Chuyển đến sản phẩm ${i + 1}`}
               />
             ))}

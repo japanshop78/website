@@ -5,7 +5,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { useCart } from "@/context/CartContext";
 import { useProductData } from "@/context/ProductDataContext";
-import { getProductPricing } from "@/types/promotion";
+import { getProductPricing, calculateCartTotals } from "@/types/promotion";
 import { getAssetPath } from "@/utils/assetPath";
 import { orderService } from "@/services/orderService";
 import { analytics } from "@/utils/analytics";
@@ -28,7 +28,6 @@ export default function CartPage() {
   const {
     items,
     totalItems,
-    totalPrice,
     updateQuantity,
     removeFromCart,
     clearCart,
@@ -55,17 +54,16 @@ export default function CartPage() {
     zaloMessage?: string;
   } | null>(null);
 
-  // Promotion discounts & Free shipping
-  const hasPromo = isPromotionActive && (promotion?.discountPercent || 0) > 0;
-  const promoPercent = hasPromo ? promotion.discountPercent : 0;
-  const discountAmount = promoPercent > 0
-    ? Math.floor((totalPrice * promoPercent) / 100 / 1000) * 1000
-    : 0;
-
-  // Shipping cost rule: Freeship if campaign active or order >= 500k, otherwise 25k
-  const isFreeShip = (isPromotionActive && promotion.isFreeship) || totalPrice >= 500000 || totalPrice === 0;
-  const shippingFee = isFreeShip ? 0 : 25000;
-  const finalTotal = Math.max(0, totalPrice - discountAmount + shippingFee);
+  // Promotion discounts & Free shipping (consistent with CartDrawer & ProductPricing)
+  const {
+    originalSubtotal: totalPrice,
+    effectiveSubtotal,
+    discountAmount,
+    hasPromo,
+    promoPercent,
+    shippingFee,
+    finalTotal,
+  } = calculateCartTotals(items, promotion, isPromotionActive);
 
   const handleCheckoutSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -81,13 +79,16 @@ export default function CartPage() {
 
     setIsSubmitting(true);
     const orderId = `JP-${Date.now().toString().slice(-6)}`;
-    const orderItems = items.map((it) => ({
-      productId: it.product.id,
-      name: it.product.name,
-      price: it.product.price,
-      quantity: it.quantity,
-      image: it.product.images?.[0] || "",
-    }));
+    const orderItems = items.map((it) => {
+      const pricing = getProductPricing(it.product, promotion, isPromotionActive);
+      return {
+        productId: it.product.id,
+        name: it.product.name,
+        price: pricing.effectivePrice,
+        quantity: it.quantity,
+        image: it.product.images?.[0] || "",
+      };
+    });
 
     const promoTitle = promotion?.name || "Ưu đãi hot";
     const promoNote = hasPromo
@@ -103,7 +104,7 @@ export default function CartPage() {
         address: address.trim(),
         note: combinedNote,
         paymentMethod,
-        subtotal: totalPrice,
+        subtotal: effectiveSubtotal,
         shippingFee,
         totalPrice: finalTotal,
         items: orderItems,
@@ -119,10 +120,10 @@ export default function CartPage() {
       analytics.trackPurchase({
         orderId,
         total: finalTotal,
-        items: items.map((it) => ({
-          id: it.product.id,
-          name: it.product.name,
-          price: it.product.price,
+        items: orderItems.map((it) => ({
+          id: it.productId,
+          name: it.name,
+          price: it.price,
           quantity: it.quantity,
         })),
       });
@@ -145,7 +146,7 @@ export default function CartPage() {
           address: address.trim(),
           note: note.trim(),
           paymentMethod,
-          subtotal: totalPrice,
+          subtotal: effectiveSubtotal,
           shippingFee,
           totalPrice: finalTotal,
           items: orderItems,

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import { Product } from "@/data/products";
@@ -9,6 +9,7 @@ import { useCart } from "@/context/CartContext";
 import { getAssetPath } from "@/utils/assetPath";
 import { analytics } from "@/utils/analytics";
 import { getProductPricing } from "@/types/promotion";
+import { useInfiniteCarousel } from "@/hooks/useInfiniteCarousel";
 import { StarIcon, PlusIcon, CheckIcon, ChevronLeftIcon, ChevronRightIcon } from "@/components/icons";
 
 
@@ -21,125 +22,33 @@ export default function FeaturedProductsSection() {
 
   const featuredProducts = getFeaturedProducts(featuredBannerLimit || 20);
 
-  const [itemsPerView, setItemsPerView] = useState(5);
-  const [isPaused, setIsPaused] = useState(false);
-  const [isTransitioning, setIsTransitioning] = useState(true);
-
-  // Responsive items per view (5 on xl)
-  useEffect(() => {
-    const handleResize = () => {
-      const w = window.innerWidth;
-      if (w >= 1280) setItemsPerView(5);
-      else if (w >= 1024) setItemsPerView(4);
-      else if (w >= 768) setItemsPerView(3);
-      else if (w >= 640) setItemsPerView(2);
-      else setItemsPerView(2);
-    };
-    handleResize();
-    window.addEventListener("resize", handleResize);
-    return () => window.removeEventListener("resize", handleResize);
-  }, []);
-
-  // Prepare infinite looping products (replicate array so it scrolls seamlessly)
-  const baseList = featuredProducts.length < 5
-    ? [...featuredProducts, ...featuredProducts]
-    : featuredProducts;
-  const listLen = baseList.length;
-  const extendedProducts = [...baseList, ...baseList, ...baseList];
-
-  const [currentIndex, setCurrentIndex] = useState(listLen);
-
-  // Keep currentIndex aligned if listLen changes
-  useEffect(() => {
-    if (listLen > 0 && (currentIndex < listLen || currentIndex >= listLen * 2)) {
-      setIsTransitioning(false);
-      setCurrentIndex(listLen);
-    }
-  }, [listLen]);
-
-  // Pause when tab is inactive/minimized, and safely re-align when user returns
-  useEffect(() => {
-    const handleVisibilityChange = () => {
-      if (document.hidden) {
-        setIsPaused(true);
-      } else {
-        setIsPaused(false);
-        setIsTransitioning(false);
-        setCurrentIndex((prev) => (listLen > 0 ? listLen + (prev % listLen) : 0));
-      }
-    };
-    document.addEventListener("visibilitychange", handleVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", handleVisibilityChange);
-  }, [listLen]);
-
-  const handleNext = useCallback(() => {
-    if (listLen === 0) return;
-    setCurrentIndex((prev) => {
-      if (prev >= listLen * 2) {
-        setIsTransitioning(false);
-        return listLen + 1;
-      }
-      setIsTransitioning(true);
-      return prev + 1;
-    });
-  }, [listLen]);
-
-  const handlePrev = useCallback(() => {
-    if (listLen === 0) return;
-    setCurrentIndex((prev) => {
-      if (prev <= listLen - 1) {
-        setIsTransitioning(false);
-        return listLen * 2 - 2;
-      }
-      setIsTransitioning(true);
-      return prev - 1;
-    });
-  }, [listLen]);
-
-  // Auto-play animation running from right to left every 3 seconds (pauses when tab hidden)
-  useEffect(() => {
-    if (isPaused || listLen === 0) return;
-    const interval = setInterval(() => {
-      if (typeof document !== "undefined" && document.hidden) return;
-      handleNext();
-    }, 3000);
-    return () => clearInterval(interval);
-  }, [isPaused, listLen, handleNext]);
-
-  // Seamless jump when reaching boundaries
-  const handleTransitionEnd = () => {
-    if (listLen === 0) return;
-    if (currentIndex >= listLen * 2) {
-      setIsTransitioning(false);
-      setCurrentIndex((prev) => listLen + (prev % listLen));
-    } else if (currentIndex < listLen) {
-      setIsTransitioning(false);
-      setCurrentIndex((prev) => listLen + (prev % listLen));
-    }
-  };
-
-  // Touch swipe support
-  const touchStartX = useRef<number | null>(null);
-  const handleTouchStart = (e: React.TouchEvent) => {
-    touchStartX.current = e.touches[0].clientX;
-    setIsPaused(true);
-  };
-  const handleTouchEnd = (e: React.TouchEvent) => {
-    if (touchStartX.current !== null) {
-      const diff = e.changedTouches[0].clientX - touchStartX.current;
-      if (diff < -40) handleNext();
-      else if (diff > 40) handlePrev();
-    }
-    touchStartX.current = null;
-    setIsPaused(false);
-  };
+  const {
+    itemsPerView,
+    baseList,
+    listLen,
+    extendedItems: extendedProducts,
+    currentIndex,
+    activeDotIndex,
+    setIsPaused,
+    isTransitioning,
+    handleNext,
+    handlePrev,
+    handleTransitionEnd,
+    handleTouchStart,
+    handleTouchEnd,
+    selectSlide,
+  } = useInfiniteCarousel({
+    items: featuredProducts,
+    autoPlayIntervalMs: 3000,
+  });
 
   const handleAdd = (product: Product) => {
+    const pricing = getProductPricing(product, promotion, isPromotionActive);
     addToCart(product, 1);
     analytics.trackAddToCart({
       id: product.id,
       name: product.name,
-      price: product.price,
+      price: pricing.effectivePrice,
     }, 1);
     setAddedId(product.id);
     setTimeout(() => setAddedId(null), 1500);
@@ -149,8 +58,6 @@ export default function FeaturedProductsSection() {
   if (featuredProducts.length === 0) {
     return null;
   }
-
-  const activeDotIndex = (currentIndex % listLen + listLen) % listLen;
 
   return (
     <section className="bg-zinc-50/80 dark:bg-zinc-950/60 py-16 sm:py-24 border-t border-zinc-200/80 dark:border-zinc-800/80 relative overflow-hidden">
@@ -350,10 +257,7 @@ export default function FeaturedProductsSection() {
               <button
                 key={i}
                 type="button"
-                onClick={() => {
-                  setIsTransitioning(true);
-                  setCurrentIndex(listLen + i);
-                }}
+                onClick={() => selectSlide(i)}
                 className={`h-2 rounded-full transition-all duration-300 cursor-pointer ${
                   activeDotIndex === i
                     ? "w-7 bg-indigo-600 dark:bg-indigo-400 shadow-xs"

@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-require-imports */
 /**
  * Optimized Supabase Data Sync Script for Japan Shop
  * Usage: npm run db:sync
@@ -30,7 +31,8 @@ const headers = {
   'apikey': supabaseKey,
   'Authorization': 'Bearer ' + supabaseKey,
   'Content-Type': 'application/json',
-  'Prefer': 'resolution=merge-duplicates'
+  'Prefer': 'resolution=merge-duplicates',
+  'x-client-info': 'japan-shop-admin/' + (envContent.match(/NEXT_PUBLIC_ADMIN_PASSKEY_HASH=(.*)/) ? envContent.match(/NEXT_PUBLIC_ADMIN_PASSKEY_HASH=(.*)/)[1].trim() : '')
 };
 
 async function postBatch(endpoint, items, batchSize = 50) {
@@ -202,3 +204,4 @@ sync().catch((err) => {
   console.error('❌ Sync failed:', err.message);
   process.exit(1);
 });
+

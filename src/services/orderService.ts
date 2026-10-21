@@ -92,18 +92,29 @@ export const orderService = {
 
     if (isSupabaseConfigured() && supabase) {
       try {
-        const { data: inserted, error } = await supabase
+        const { error } = await supabase
           .from("orders")
-          .insert([payload])
-          .select()
-          .single();
+          .insert([payload]);
 
         if (error) {
           console.error("[orderService] Lỗi lưu đơn hàng vào Supabase:", error);
           return { success: false, error: error.message };
         }
 
-        const savedOrder = mapRowToOrder(inserted as SupabaseOrderRow);
+        const savedOrder: Order = {
+          id: payload.id,
+          customerName: payload.customer_name,
+          phone: payload.phone,
+          address: payload.address,
+          note: payload.note,
+          paymentMethod: data.paymentMethod,
+          subtotal: payload.subtotal,
+          shippingFee: payload.shipping_fee,
+          totalPrice: payload.total_price,
+          items: payload.items,
+          status: payload.status,
+          createdAt: new Date().toISOString(),
+        };
 
         // Kích hoạt thông báo tự động qua Zalo Webhook nếu có cấu hình
         this.sendZaloWebhookNotification(savedOrder).catch((err) => {
