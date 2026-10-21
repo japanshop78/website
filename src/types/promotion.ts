@@ -79,7 +79,7 @@ export function formatPromoDateRange(startDate?: string, endDate?: string): stri
   const end = fmt(endDate);
   if (start && end) return `từ ${start} đến ${end}`;
   if (end) return `đến ${end}`;
-  return "từ 10/10 đến 20/10";
+  return "thời gian có hạn";
 }
 
 export interface ProductPricing {
