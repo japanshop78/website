@@ -7,10 +7,25 @@ import { useRouter, usePathname } from "next/navigation";
 import { useProductData } from "@/context/ProductDataContext";
 import { getAssetPath } from "@/utils/assetPath";
 import { getProductPricing } from "@/types/promotion";
+import {
+  searchProductsEngine,
+  getRecentSearches,
+  saveRecentSearch,
+  clearRecentSearches,
+} from "@/utils/searchEngine";
 import SearchIcon from "./icons/SearchIcon";
 import CloseIcon from "./icons/CloseIcon";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
+
+const POPULAR_SEARCH_TAGS = [
+  "Collagen",
+  "Kem chống nắng",
+  "Sữa rửa mặt",
+  "Trị nám",
+  "Vitamin C",
+  "Tảo xoắn",
+];
 
 interface LiveSearchDropdownProps {
   isOpen: boolean;
@@ -26,8 +41,16 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [selectedIndex, setSelectedIndex] = useState(-1);
   const [isOpenResults, setIsOpenResults] = useState(false);
+  const [recentSearches, setRecentSearches] = useState<string[]>([]);
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
+  // Load recent searches on mount / when opened
+  useEffect(() => {
+    if (isOpen) {
+      setRecentSearches(getRecentSearches());
+    }
+  }, [isOpen]);
 
   // Automatically close dropdown and reset query when route changes
   useEffect(() => {
@@ -37,15 +60,13 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     setSelectedIndex(-1);
   }, [pathname]);
 
-  // Debounce search query
+  // Debounce search query (180ms)
   useEffect(() => {
     const timer = setTimeout(() => {
       const trimmed = query.trim();
       setDebouncedQuery(trimmed);
       if (trimmed) {
         setIsOpenResults(true);
-      } else {
-        setIsOpenResults(false);
       }
     }, 180);
     return () => clearTimeout(timer);
@@ -55,6 +76,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
   useEffect(() => {
     if (isOpen) {
       setTimeout(() => inputRef.current?.focus(), 50);
+      setRecentSearches(getRecentSearches());
     } else {
       setQuery("");
       setDebouncedQuery("");
@@ -94,36 +116,33 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     return new Map(categories.map((c) => [c.id, c.name]));
   }, [categories]);
 
-  // Filter products
+  // Filter & rank products using intelligent search engine (v2.0)
   const searchResults = useMemo(() => {
     if (!debouncedQuery) return [];
-    const q = debouncedQuery.toLowerCase();
-    return products
-      .filter((p) => {
-        if (p.visible === false) return false;
-        return (
-          p.name.toLowerCase().includes(q) ||
-          (p.description && p.description.toLowerCase().includes(q)) ||
-          (p.tag && p.tag.toLowerCase().includes(q)) ||
-          (p.ingredients && p.ingredients.toLowerCase().includes(q))
-        );
-      })
-      .slice(0, 6);
-  }, [debouncedQuery, products]);
+    return searchProductsEngine(products, debouncedQuery, categoryMap, getCategoryIdByProductId).slice(0, 6);
+  }, [debouncedQuery, products, categoryMap, getCategoryIdByProductId]);
 
-  const handleSubmit = (e?: React.FormEvent) => {
-    if (e) e.preventDefault();
-    if (selectedIndex >= 0 && searchResults[selectedIndex]) {
-      const selected = searchResults[selectedIndex];
-      handleCloseDropdown(true);
-      router.push(`/product/${selected.id}`);
-      return;
-    }
-    if (query.trim()) {
-      const targetQuery = encodeURIComponent(query.trim());
+  const handleSubmit = (searchKeyword?: string) => {
+    const finalQuery = (searchKeyword !== undefined ? searchKeyword : query).trim();
+    if (finalQuery) {
+      saveRecentSearch(finalQuery);
+      setRecentSearches(getRecentSearches());
+      const targetQuery = encodeURIComponent(finalQuery);
       handleCloseDropdown(false);
       router.push(`/search?q=${targetQuery}`);
     }
+  };
+
+  const handleSelectRecentOrPopular = (keyword: string) => {
+    setQuery(keyword);
+    setDebouncedQuery(keyword);
+    handleSubmit(keyword);
+  };
+
+  const handleClearHistory = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    clearRecentSearches();
+    setRecentSearches([]);
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
@@ -137,6 +156,13 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
       setSelectedIndex((prev) => (prev > -1 ? prev - 1 : -1));
     } else if (e.key === "Enter") {
       e.preventDefault();
+      if (selectedIndex >= 0 && searchResults[selectedIndex]) {
+        const item = searchResults[selectedIndex];
+        saveRecentSearch(query.trim() || item.product.name);
+        handleCloseDropdown(true);
+        router.push(`/product/${item.product.id}`);
+        return;
+      }
       handleSubmit();
     }
   };
@@ -150,17 +176,13 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     >
       <div className="mx-auto max-w-2xl relative">
         {/* Search Input Box */}
-        <form onSubmit={handleSubmit} className="relative flex items-center">
+        <form onSubmit={(e) => { e.preventDefault(); handleSubmit(); }} className="relative flex items-center">
           <input
             ref={inputRef}
             type="text"
-            placeholder="Tìm theo tên sản phẩm, công dụng, thành phần..."
+            placeholder="Tìm theo tên sản phẩm, công dụng, thành phần (hỗ trợ gõ không dấu)..."
             value={query}
-            onFocus={() => {
-              if (debouncedQuery) {
-                setIsOpenResults(true);
-              }
-            }}
+            onFocus={() => setIsOpenResults(true)}
             onChange={(e) => {
               setQuery(e.target.value);
               setSelectedIndex(-1);
@@ -175,10 +197,9 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                 onClick={() => {
                   setQuery("");
                   setDebouncedQuery("");
-                  setIsOpenResults(false);
                   inputRef.current?.focus();
                 }}
-                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200"
+                className="p-1 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
                 aria-label="Xóa từ khóa"
               >
                 <CloseIcon className="h-4 w-4" />
@@ -186,7 +207,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
             )}
             <button
               type="submit"
-              className="p-1.5 text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400"
+              className="p-1.5 text-zinc-500 hover:text-indigo-600 dark:text-zinc-400 dark:hover:text-indigo-400 cursor-pointer"
               aria-label="Tìm kiếm"
             >
               <SearchIcon className="h-4 w-4" />
@@ -194,26 +215,39 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
           </div>
         </form>
 
-        {/* Live Dropdown Results */}
+        {/* Live Dropdown: Khi có từ khóa */}
         {isOpenResults && debouncedQuery && (
           <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white/98 backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900/98 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
             {searchResults.length === 0 ? (
-              <div className="p-6 text-center">
-                <p className="text-sm font-medium text-zinc-600 dark:text-zinc-400">
+              <div className="p-6 text-center space-y-2">
+                <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                   Không tìm thấy sản phẩm nào cho &quot;{debouncedQuery}&quot;
                 </p>
-                <p className="text-xs text-zinc-400 mt-1">
-                  Hãy thử gõ từ khóa ngắn hơn (ví dụ: collagen, son, kem chống nắng, sữa chua...)
+                <p className="text-xs text-zinc-400">
+                  Thử tìm kiếm không dấu hoặc dùng các từ khóa gợi ý:
                 </p>
+                <div className="flex flex-wrap items-center justify-center gap-1.5 pt-1">
+                  {POPULAR_SEARCH_TAGS.map((tag) => (
+                    <button
+                      key={tag}
+                      type="button"
+                      onClick={() => handleSelectRecentOrPopular(tag)}
+                      className="px-2.5 py-1 rounded-full text-xs font-medium bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 hover:text-indigo-600 text-zinc-600 dark:text-zinc-300 transition-colors cursor-pointer"
+                    >
+                      {tag}
+                    </button>
+                  ))}
+                </div>
               </div>
             ) : (
               <div>
                 <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
-                  <span>Gợi ý sản phẩm ({searchResults.length})</span>
+                  <span>Sản phẩm phù hợp ({searchResults.length})</span>
                   <span className="text-[10px] text-zinc-400">Dùng ↑ ↓ để chọn, Enter để xem</span>
                 </div>
                 <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[380px] overflow-y-auto">
-                  {searchResults.map((product, idx) => {
+                  {searchResults.map((match, idx) => {
+                    const product = match.product;
                     const imgUrl = product.images?.[0] || "/logo.jpg";
                     const catId = getCategoryIdByProductId(product.id);
                     const catName = catId ? categoryMap.get(catId) : null;
@@ -224,7 +258,10 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                       <Link
                         key={product.id}
                         href={`/product/${product.id}`}
-                        onClick={() => handleCloseDropdown(true)}
+                        onClick={() => {
+                          saveRecentSearch(debouncedQuery);
+                          handleCloseDropdown(true);
+                        }}
                         onMouseEnter={() => setSelectedIndex(idx)}
                         className={`flex items-center gap-3.5 p-3 transition-colors ${
                           isSelected
@@ -243,19 +280,31 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                           />
                         </div>
 
-                        {/* Title & Price */}
+                        {/* Title, Snippet & Price */}
                         <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
+                          <div className="flex items-center gap-1.5">
                             {catName && (
                               <span className="rounded-md bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
                                 {catName}
                               </span>
                             )}
-
+                            {match.matchedIn !== "name" && (
+                              <span className="rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                                {match.matchedIn === "tag" ? "Khớp nhãn" : "Khớp công dụng"}
+                              </span>
+                            )}
                           </div>
                           <p className="text-xs font-semibold uppercase text-zinc-900 dark:text-white truncate mt-0.5">
                             {product.name}
                           </p>
+
+                          {/* Snippet giải thích lý do khớp nếu có */}
+                          {match.snippet && (
+                            <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate italic mt-0.5">
+                              💬 {match.snippet}
+                            </p>
+                          )}
+
                           <div className="flex items-baseline gap-2 mt-0.5">
                             <span className="text-xs font-bold text-indigo-600 dark:text-indigo-400">
                               {formatPrice(effectivePrice)}
@@ -277,13 +326,68 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                   <button
                     type="button"
                     onClick={() => handleSubmit()}
-                    className="w-full py-2 px-3 rounded-xl bg-indigo-600/10 hover:bg-indigo-600 text-indigo-600 hover:text-white text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5"
+                    className="w-full py-2 px-3 rounded-xl bg-indigo-600/10 hover:bg-indigo-600 text-indigo-600 hover:text-white text-xs font-bold transition-all text-center flex items-center justify-center gap-1.5 cursor-pointer"
                   >
                     <span>Xem tất cả kết quả cho &quot;{debouncedQuery}&quot; →</span>
                   </button>
                 </div>
               </div>
             )}
+          </div>
+        )}
+
+        {/* Live Dropdown: Khi ô tìm kiếm trống (Gợi ý lịch sử & từ khóa thịnh hành) */}
+        {isOpenResults && !debouncedQuery && (
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white/98 backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900/98 p-4 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
+            {/* Lịch sử tìm kiếm gần đây */}
+            {recentSearches.length > 0 && (
+              <div>
+                <div className="flex items-center justify-between mb-2">
+                  <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                    🕒 Tìm kiếm gần đây
+                  </span>
+                  <button
+                    type="button"
+                    onClick={handleClearHistory}
+                    className="text-[11px] text-zinc-400 hover:text-rose-600 dark:hover:text-rose-400 transition-colors cursor-pointer"
+                  >
+                    Xóa lịch sử
+                  </button>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {recentSearches.map((keyword) => (
+                    <button
+                      key={keyword}
+                      type="button"
+                      onClick={() => handleSelectRecentOrPopular(keyword)}
+                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                    >
+                      <span>🔍</span>
+                      <span>{keyword}</span>
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Từ khóa thịnh hành */}
+            <div>
+              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block mb-2">
+                🔥 Gợi ý từ khóa hot
+              </span>
+              <div className="flex flex-wrap gap-2">
+                {POPULAR_SEARCH_TAGS.map((tag) => (
+                  <button
+                    key={tag}
+                    type="button"
+                    onClick={() => handleSelectRecentOrPopular(tag)}
+                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-indigo-500 hover:text-indigo-600 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                  >
+                    {tag}
+                  </button>
+                ))}
+              </div>
+            </div>
           </div>
         )}
       </div>

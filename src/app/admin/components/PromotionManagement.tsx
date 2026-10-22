@@ -6,13 +6,11 @@ import { useProductData } from "@/context/ProductDataContext";
 import {
   PromotionCampaign,
   DEFAULT_PROMOTION,
-  isCampaignActive,
   formatPromoDateRange,
   calculateDiscountedPrice,
 } from "@/types/promotion";
 import BoltIcon from "@/components/icons/BoltIcon";
 import SparklesIcon from "@/components/icons/SparklesIcon";
-import CheckIcon from "@/components/icons/CheckIcon";
 
 /**
  * Chuyển đổi chuỗi ISO (hoặc Date string) sang định dạng YYYY-MM-DDTHH:mm cho input type="datetime-local"
@@ -94,9 +92,6 @@ export default function PromotionManagement() {
     if (isNaN(target)) return false;
     return target > new Date().getTime();
   }, [form.endDate]);
-
-  // Kiểm tra chiến dịch có đang thực sự hiệu lực không (isActive & chưa hết hạn)
-  const isCurrentlyActive = useMemo(() => isCampaignActive(form), [form]);
 
   const dateRangeText = useMemo(() => {
     return formatPromoDateRange(form.startDate, form.endDate);
