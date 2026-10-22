@@ -107,6 +107,7 @@ export default function DiscountedProductsSection() {
   }
 
   const promoDateRangeText = formatPromoDateRange(promotion?.startDate, promotion?.endDate);
+  const hasTimeRemaining = isMounted && !!promotion?.endDate && new Date(promotion.endDate).getTime() > new Date().getTime();
 
   return (
     <section id="discount-section" className="bg-gradient-to-r from-rose-600 via-red-600 to-rose-700 dark:from-rose-950 dark:via-red-950 dark:to-rose-950 pt-6 sm:pt-8 pb-0 text-white relative overflow-hidden shadow-inner">
@@ -123,129 +124,149 @@ export default function DiscountedProductsSection() {
               <span>{promotion?.bannerTitle || "Ưu đãi hot 🔥"}</span>
             </h2>
 
-            {isPromotionActive &&
-              <>
-                {/* Countdown Timer */}
-                <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg shrink-0">
-                  <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
-                    <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
-                    <span className="hidden sm:inline">Kết thúc sau:</span>
-                  </span>
-                  <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white" suppressHydrationWarning>
-                    {isMounted ? (
-                      <>
-                        {timeLeft.days > 0 && (
-                          <>
-                            <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                              {timeLeft.days}N
-                            </span>
-                            <span className="text-amber-300 font-bold">:</span>
-                          </>
-                        )}
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                          {formatTime(timeLeft.hours)}
+            {/* 1. Countdown Timer: CHỈ HIỂN THỊ KHI CHƯA HẾT HẠN & CHIẾN DỊCH ĐANG KÍCH HOẠT */}
+            {promotion?.isActive && hasTimeRemaining && (
+              <div className="inline-flex items-center gap-2 rounded-2xl bg-black/40 backdrop-blur-md border border-white/20 px-3 py-1.5 shadow-lg shrink-0">
+                <span className="text-[11px] sm:text-xs font-black uppercase tracking-wider text-amber-300 flex items-center gap-1">
+                  <BoltIcon className="h-3.5 w-3.5 fill-current animate-bounce text-amber-400" />
+                  <span className="hidden sm:inline">Kết thúc sau:</span>
+                </span>
+                <div className="flex items-center gap-1 font-mono font-black text-xs sm:text-sm text-white" suppressHydrationWarning>
+                  {isMounted ? (
+                    <>
+                      {timeLeft.days > 0 && (
+                        <>
+                          <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                            {timeLeft.days}N
+                          </span>
+                          <span className="text-amber-300 font-bold">:</span>
+                        </>
+                      )}
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                        {formatTime(timeLeft.hours)}
+                      </span>
+                      <span className="text-amber-300 font-bold">:</span>
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                        {formatTime(timeLeft.minutes)}
+                      </span>
+                      <span className="text-amber-300 font-bold">:</span>
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
+                        {formatTime(timeLeft.seconds)}
+                      </span>
+                    </>
+                  ) : (
+                    <>
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                      <span className="text-amber-300 font-bold">:</span>
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                      <span className="text-amber-300 font-bold">:</span>
+                      <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
+                    </>
+                  )}
+                </div>
+              </div>
+            )}
+
+            {/* 2. Seamless Scrolling Marquee Text: VẪN HIỂN THỊ NỘI DUNG THÔNG ĐIỆP */}
+            {(promotion?.isActive || promotion?.bannerSubtitle) && (
+              <div className="w-full lg:w-auto lg:flex-1 overflow-hidden py-1 select-none group/marquee min-w-0">
+                <div className="animate-marquee flex items-center whitespace-nowrap">
+                  {/* Instance 1 */}
+                  <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12">
+                    <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                      <span className="text-amber-100 font-extrabold">
+                        {promotion?.bannerSubtitle}
+                      </span>
+                      {!promotion?.bannerSubtitle && promotion?.isFreeship && (
+                        <>
+                          <span className="text-white/40 font-normal">&</span>
+                          <span className="text-rose-100">
+                            Miễn phí vận chuyển
+                          </span>
+                        </>
+                      )}
+                      {/* Thời gian áp dụng: chỉ hiển thị khi chưa hết hạn */}
+                      {hasTimeRemaining && promoDateRangeText && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
                         </span>
-                        <span className="text-amber-300 font-bold">:</span>
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                          {formatTime(timeLeft.minutes)}
+                      )}
+                    </span>
+
+                    <span className="text-white/35 text-base font-normal">✦</span>
+
+                    <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                      <span className="text-amber-100 font-extrabold">
+                        {promotion?.bannerSubtitle}
+                      </span>
+                      {!promotion?.bannerSubtitle && promotion?.isFreeship && (
+                        <>
+                          <span className="text-white/40 font-normal">&</span>
+                          <span className="text-rose-100">
+                            Miễn phí vận chuyển
+                          </span>
+                        </>
+                      )}
+                      {/* Thời gian áp dụng: chỉ hiển thị khi chưa hết hạn */}
+                      {hasTimeRemaining && promoDateRangeText && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
                         </span>
-                        <span className="text-amber-300 font-bold">:</span>
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner" suppressHydrationWarning>
-                          {formatTime(timeLeft.seconds)}
+                      )}
+                    </span>
+
+                    <span className="text-white/35 text-base font-normal">✦</span>
+                  </div>
+
+                  {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
+                  <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12" aria-hidden="true">
+                    <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                      <span className="text-amber-100 font-extrabold">
+                        {promotion?.bannerSubtitle}
+                      </span>
+                      {!promotion?.bannerSubtitle && promotion?.isFreeship && (
+                        <>
+                          <span className="text-white/40 font-normal">&</span>
+                          <span className="text-rose-100">
+                            Miễn phí vận chuyển
+                          </span>
+                        </>
+                      )}
+                      {/* Thời gian áp dụng: chỉ hiển thị khi chưa hết hạn */}
+                      {hasTimeRemaining && promoDateRangeText && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
                         </span>
-                      </>
-                    ) : (
-                      <>
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                        <span className="text-amber-300 font-bold">:</span>
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                        <span className="text-amber-300 font-bold">:</span>
-                        <span className="rounded-lg bg-zinc-900/90 text-amber-300 px-2 py-0.5 border border-amber-400/30 shadow-inner">00</span>
-                      </>
-                    )}
+                      )}
+                    </span>
+
+                    <span className="text-white/35 text-base font-normal">✦</span>
+
+                    <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
+                      <span className="text-amber-100 font-extrabold">
+                        {promotion?.bannerSubtitle}
+                      </span>
+                      {!promotion?.bannerSubtitle && promotion?.isFreeship && (
+                        <>
+                          <span className="text-white/40 font-normal">&</span>
+                          <span className="text-rose-100">
+                            Miễn phí vận chuyển
+                          </span>
+                        </>
+                      )}
+                      {/* Thời gian áp dụng: chỉ hiển thị khi chưa hết hạn */}
+                      {hasTimeRemaining && promoDateRangeText && (
+                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
+                          {promoDateRangeText}
+                        </span>
+                      )}
+                    </span>
+
+                    <span className="text-white/35 text-base font-normal">✦</span>
                   </div>
                 </div>
-
-                {/* Seamless Scrolling Marquee Text */}
-                <div className="w-full lg:w-auto lg:flex-1 overflow-hidden py-1 select-none group/marquee min-w-0">
-                  <div className="animate-marquee flex items-center whitespace-nowrap">
-                    {/* Instance 1 */}
-                    <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12">
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                        <span className="text-lg sm:text-xl">🔥</span>
-                        <span className="text-amber-100 font-extrabold">
-                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                        </span>
-                        <span className="text-white/40 font-normal">&</span>
-                        <span className="text-rose-100">
-                          Miễn phí vận chuyển
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                          {promoDateRangeText}
-                        </span>
-                        <span className="text-lg sm:text-xl">✨</span>
-                      </span>
-
-                      <span className="text-white/35 text-base font-normal">✦</span>
-
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                        <span className="text-lg sm:text-xl">🎉</span>
-                        <span className="text-amber-100 font-extrabold">
-                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                        </span>
-                        <span className="text-white/40 font-normal">&</span>
-                        <span className="text-rose-100">
-                          Miễn phí vận chuyển
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                          {promoDateRangeText}
-                        </span>
-                        <span className="text-lg sm:text-xl">🎁</span>
-                      </span>
-
-                      <span className="text-white/35 text-base font-normal">✦</span>
-                    </div>
-
-                    {/* Instance 2 (Bản sao giống hệt để nối vòng lặp vô tận mượt mà) */}
-                    <div className="flex items-center gap-8 sm:gap-12 shrink-0 pr-8 sm:pr-12" aria-hidden="true">
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                        <span className="text-lg sm:text-xl">🔥</span>
-                        <span className="text-amber-100 font-extrabold">
-                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                        </span>
-                        <span className="text-white/40 font-normal">&</span>
-                        <span className="text-rose-100">
-                          Miễn phí vận chuyển
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                          {promoDateRangeText}
-                        </span>
-                        <span className="text-lg sm:text-xl">✨</span>
-                      </span>
-
-                      <span className="text-white/35 text-base font-normal">✦</span>
-
-                      <span className="flex items-center gap-2.5 text-base sm:text-lg md:text-xl font-bold uppercase tracking-wide text-white">
-                        <span className="text-lg sm:text-xl">🎉</span>
-                        <span className="text-amber-100 font-extrabold">
-                          Giảm {promotion?.discountPercent || 10}% cho tất cả sản phẩm
-                        </span>
-                        <span className="text-white/40 font-normal">&</span>
-                        <span className="text-rose-100">
-                          Miễn phí vận chuyển
-                        </span>
-                        <span className="px-2.5 py-0.5 rounded-full bg-white/15 border border-white/20 text-white text-xs font-semibold tracking-wider">
-                          {promoDateRangeText}
-                        </span>
-                        <span className="text-lg sm:text-xl">🎁</span>
-                      </span>
-
-                      <span className="text-white/35 text-base font-normal">✦</span>
-                    </div>
-                  </div>
-                </div>
-              </>
-            }
+              </div>
+            )}
           </div>
 
           {/* Navigation Controls in Header */}
