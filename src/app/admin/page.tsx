@@ -8,6 +8,7 @@ import CategoryProductManagement from "./components/CategoryProductManagement";
 import ProductManagement from "./components/ProductManagement";
 import FeaturedManagement from "./components/FeaturedManagement";
 import DiscountManagement from "./components/DiscountManagement";
+import PromotionManagement from "./components/PromotionManagement";
 import RakutenManagement from "./components/RakutenManagement";
 import OrderManagement from "./components/OrderManagement";
 
@@ -28,6 +29,7 @@ type AdminTab =
   | "category_products"
   | "featured"
   | "discount"
+  | "promotions"
   | "rakuten";
 
 export default function AdminPage() {
@@ -51,6 +53,7 @@ export default function AdminPage() {
     products,
     categoryProducts,
     getFeaturedProducts,
+    promotion,
     supabaseStatus,
     seedInitialDataToSupabase,
     refreshFromSupabase,
@@ -364,7 +367,15 @@ export default function AdminPage() {
       icon: "⚡",
       count: discountedProducts.length,
       color: "rose",
-      desc: "Chương trình khuyến mãi",
+      desc: "Vị trí & sắp xếp banner",
+    },
+    {
+      id: "promotions" as AdminTab,
+      label: "Chiến dịch Khuyến mãi",
+      icon: "🎁",
+      count: promotion?.isActive ? `-${promotion.discountPercent}%` : "Đã tắt",
+      color: "rose",
+      desc: "Ưu đãi toàn sàn & Freeship",
     },
     {
       id: "rakuten" as AdminTab,
@@ -378,7 +389,7 @@ export default function AdminPage() {
 
   return (
     <div className="min-h-screen bg-zinc-50 dark:bg-zinc-950 py-6 px-3 sm:px-6 lg:px-8">
-      <div className="mx-auto max-w-[1600px]">
+      <div className="mx-auto max-w-[1680px]">
         {/* Top Header Bar */}
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between border-b border-zinc-200 dark:border-zinc-800 pb-5 mb-6">
           <div className="flex items-center gap-3">
@@ -536,7 +547,7 @@ export default function AdminPage() {
         </div>
 
         {/* Main 2-Column Sidebar Layout (Desktop: lg+) */}
-        <div className="grid grid-cols-1 lg:grid-cols-[290px_1fr] gap-6 items-start">
+        <div className="grid grid-cols-1 lg:grid-cols-[340px_1fr] xl:grid-cols-[360px_1fr] gap-6 items-start">
           {/* Left Sidebar (Desktop) */}
           <aside className="hidden lg:flex flex-col gap-4 sticky top-6">
             <div className="rounded-3xl border border-zinc-200 dark:border-zinc-800 bg-white dark:bg-zinc-900 p-4 shadow-sm">
@@ -607,6 +618,12 @@ export default function AdminPage() {
                   <span>Đang giảm giá:</span>
                   <span className="font-bold text-rose-600 dark:text-rose-400">{discountedProducts.length} SP</span>
                 </div>
+                <div className="flex items-center justify-between text-xs text-zinc-500 dark:text-zinc-400">
+                  <span>Ưu đãi toàn sàn:</span>
+                  <span className={`font-bold ${promotion?.isActive ? "text-emerald-600 dark:text-emerald-400" : "text-zinc-400"}`}>
+                    {promotion?.isActive ? `Bật (-${promotion.discountPercent}%)` : "Đã tắt"}
+                  </span>
+                </div>
               </div>
             </div>
           </aside>
@@ -620,6 +637,7 @@ export default function AdminPage() {
               {activeTab === "category_products" && <CategoryProductManagement />}
               {activeTab === "featured" && <FeaturedManagement />}
               {activeTab === "discount" && <DiscountManagement />}
+              {activeTab === "promotions" && <PromotionManagement />}
               {activeTab === "rakuten" && <RakutenManagement />}
 
             </div>
