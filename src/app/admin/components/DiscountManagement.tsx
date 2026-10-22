@@ -41,7 +41,6 @@ export default function DiscountManagement() {
     categories,
     getProductsByBanner,
     getCategoryIdByProductId,
-    updateProduct,
     setBannerProducts,
     discountBannerLimit,
     updateDiscountBannerLimit,
