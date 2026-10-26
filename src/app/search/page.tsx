@@ -1,7 +1,7 @@
 "use client";
 
 import React, { Suspense, useState, useMemo, useEffect } from "react";
-import { useSearchParams } from "next/navigation";
+import { useSearchParams, useRouter } from "next/navigation";
 import Link from "next/link";
 import Image from "next/image";
 import { useProductData } from "@/context/ProductDataContext";
@@ -12,6 +12,7 @@ import { getProductPricing } from "@/types/promotion";
 import { searchProductsEngine, saveRecentSearch, SearchMatchResult } from "@/utils/searchEngine";
 import ZaloIcon from "@/components/icons/ZaloIcon";
 import CheckIcon from "@/components/icons/CheckIcon";
+import CloseIcon from "@/components/icons/CloseIcon";
 
 const formatPrice = (price: number) => price.toLocaleString("vi-VN") + "đ";
 
@@ -38,6 +39,7 @@ const POPULAR_SUGGESTION_TAGS = [
 ];
 
 function SearchContent() {
+  const router = useRouter();
   const searchParams = useSearchParams();
   const queryParam = searchParams.get("q") || "";
   const [searchTerm, setSearchTerm] = useState(queryParam);
@@ -57,15 +59,13 @@ function SearchContent() {
   } = useProductData();
   const { addToCart } = useCart();
 
-  // Sync khi queryParam trên URL thay đổi
+  // Sync khi queryParam trên URL thay đổi (chỉ phụ thuộc vào queryParam để tránh loop/reset state)
   useEffect(() => {
-    if (queryParam !== submittedQuery) {
-      setSearchTerm(queryParam);
-      setSubmittedQuery(queryParam);
-      setSelectedCategory("all");
-      setSelectedPriceRange("all");
-    }
-  }, [queryParam, submittedQuery]);
+    setSearchTerm(queryParam);
+    setSubmittedQuery(queryParam);
+    setSelectedCategory("all");
+    setSelectedPriceRange("all");
+  }, [queryParam]);
 
   // Lưu từ khóa vào lịch sử khi tìm kiếm
   useEffect(() => {
@@ -78,23 +78,27 @@ function SearchContent() {
     return new Map(categories.map((c) => [c.id, c.name]));
   }, [categories]);
 
-  const handleSearchSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const trimmed = searchTerm.trim();
+  const applySearch = (query: string) => {
+    const trimmed = query.trim();
+    setSearchTerm(trimmed);
     setSubmittedQuery(trimmed);
     setSelectedCategory("all");
     setSelectedPriceRange("all");
     if (trimmed) {
       saveRecentSearch(trimmed);
+      router.push(`/search?q=${encodeURIComponent(trimmed)}`);
+    } else {
+      router.push("/search");
     }
   };
 
+  const handleSearchSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    applySearch(searchTerm);
+  };
+
   const handleQuickTagClick = (tag: string) => {
-    setSearchTerm(tag);
-    setSubmittedQuery(tag);
-    setSelectedCategory("all");
-    setSelectedPriceRange("all");
-    saveRecentSearch(tag);
+    applySearch(tag);
   };
 
   // 1. Áp dụng Engine tìm kiếm thông minh (v2.0)
@@ -212,8 +216,18 @@ function SearchContent() {
                 placeholder="Tìm sản phẩm theo tên, công dụng, thành phần (hỗ trợ gõ không dấu)..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 py-3.5 pl-5 pr-28 text-sm sm:text-base outline-none transition-all focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
+                className="w-full rounded-2xl border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800/80 py-3.5 pl-5 pr-32 text-sm sm:text-base outline-none transition-all focus:border-indigo-600 focus:bg-white focus:ring-4 focus:ring-indigo-600/10 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
               />
+              {searchTerm && (
+                <button
+                  type="button"
+                  onClick={() => applySearch("")}
+                  className="absolute right-28 p-1.5 text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                  aria-label="Xóa từ khóa"
+                >
+                  <CloseIcon className="h-4 w-4" />
+                </button>
+              )}
               <button
                 type="submit"
                 className="absolute right-2 px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white text-sm font-bold transition-colors shadow-xs cursor-pointer"
@@ -357,12 +371,7 @@ function SearchContent() {
               <div className="flex flex-wrap items-center justify-center gap-3">
                 <button
                   type="button"
-                  onClick={() => {
-                    setSelectedCategory("all");
-                    setSelectedPriceRange("all");
-                    setSearchTerm("");
-                    setSubmittedQuery("");
-                  }}
+                  onClick={() => applySearch("")}
                   className="inline-flex items-center gap-2 rounded-xl bg-indigo-600 hover:bg-indigo-500 px-5 py-2.5 text-xs font-bold text-white transition-all shadow-xs cursor-pointer"
                 >
                   <span>👁 Xem tất cả sản phẩm</span>
