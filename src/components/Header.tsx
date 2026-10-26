@@ -3,7 +3,7 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
@@ -28,14 +28,17 @@ function useIsMounted() {
 }
 
 export default function Header() {
+  const router = useRouter();
+  const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const isSearchOpen = true;
+  const isSearchPage = pathname === "/search" || pathname.startsWith("/search");
+  const isSearchOpen = !isSearchPage;
   const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
   const { categories } = useProductData();
   const { totalItems, openCartDrawer } = useCart();
   const mounted = useIsMounted();
-  const pathname = usePathname();
+
   const isAdminLoggedIn = mounted && verifyAdminSession();
 
   return (
@@ -188,7 +191,7 @@ export default function Header() {
                 e.preventDefault();
                 if (mobileSearchQuery.trim()) {
                   setIsMenuOpen(false);
-                  window.location.href = `/search?q=${encodeURIComponent(mobileSearchQuery.trim())}`;
+                  router.push(`/search?q=${encodeURIComponent(mobileSearchQuery.trim())}`);
                 }
               }}
               className="relative flex items-center"
@@ -281,3 +284,4 @@ export default function Header() {
     </header>
   );
 }
+
