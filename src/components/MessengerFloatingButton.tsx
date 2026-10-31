@@ -5,7 +5,7 @@ export default function MessengerFloatingButton() {
   return (
     <aside
       aria-label="Hỗ trợ trực tuyến"
-      className="fixed bottom-6 right-6 z-50 flex flex-col items-end gap-3 sm:gap-4"
+      className="fixed bottom-4 right-3 sm:bottom-6 sm:right-6 z-40 flex flex-col items-end gap-2.5 sm:gap-4"
     >
       {/* Nút Chat Zalo (Nằm trên) */}
       <div className="flex items-center group">
@@ -19,10 +19,10 @@ export default function MessengerFloatingButton() {
           rel="noopener noreferrer"
           aria-label="Chat với shop qua Zalo"
           title="Chat với shop qua Zalo (0902493895)"
-          className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-[#0068FF] text-white shadow-xl shadow-blue-600/40 hover:shadow-2xl hover:shadow-blue-600/60 hover:scale-110 active:scale-95 transition-all duration-300"
+          className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-[#0068FF] text-white shadow-lg shadow-blue-600/40 hover:shadow-2xl hover:shadow-blue-600/60 hover:scale-110 active:scale-95 transition-all duration-300"
         >
-          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#0068FF] opacity-25" />
-          <ZaloIcon className="h-10 w-10 sm:h-14 sm:w-14 text-white drop-shadow-sm" />
+          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-[#0068FF] opacity-20" />
+          <ZaloIcon className="h-7 w-7 sm:h-11 sm:w-11 text-white drop-shadow-sm" />
         </Link>
       </div>
 
@@ -38,13 +38,12 @@ export default function MessengerFloatingButton() {
           rel="noopener noreferrer"
           aria-label="Chat với shop qua Facebook Messenger"
           title="Chat với shop qua Messenger"
-          className="relative flex h-16 w-16 sm:h-20 sm:w-20 items-center justify-center rounded-full bg-gradient-to-tr from-[#0066FF] via-[#0084FF] to-[#00B2FE] text-white shadow-xl shadow-blue-500/40 hover:shadow-2xl hover:shadow-blue-500/60 hover:scale-110 active:scale-95 transition-all duration-300"
+          className="relative flex h-12 w-12 sm:h-16 sm:w-16 items-center justify-center rounded-full bg-gradient-to-tr from-[#0066FF] via-[#0084FF] to-[#00B2FE] text-white shadow-lg shadow-blue-500/40 hover:shadow-2xl hover:shadow-blue-500/60 hover:scale-110 active:scale-95 transition-all duration-300"
         >
-          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-blue-500 opacity-25" />
-          <MessengerIcon className="h-10 w-10 sm:h-14 sm:w-14 text-white drop-shadow-sm" />
+          <span className="absolute inset-0 -z-10 animate-ping rounded-full bg-blue-500 opacity-20" />
+          <MessengerIcon className="h-7 w-7 sm:h-11 sm:w-11 text-white drop-shadow-sm" />
         </Link>
       </div>
     </aside>
   );
 }
-

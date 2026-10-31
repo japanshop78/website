@@ -3,13 +3,12 @@
 import { useState, useSyncExternalStore } from "react";
 import Link from "next/link";
 import Image from "next/image";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname } from "next/navigation";
 import { useTheme } from "@/context/ThemeContext";
 import { useProductData } from "@/context/ProductDataContext";
 import { useCart } from "@/context/CartContext";
 import SunIcon from "@/components/icons/SunIcon";
 import MoonIcon from "@/components/icons/MoonIcon";
-import SearchIcon from "./icons/SearchIcon";
 import CartIcon from "./icons/CartIcon";
 import MenuIcon from "./icons/MenuIcon";
 import CloseIcon from "./icons/CloseIcon";
@@ -28,12 +27,10 @@ function useIsMounted() {
 }
 
 export default function Header() {
-  const router = useRouter();
   const pathname = usePathname();
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const isSearchPage = pathname === "/search" || pathname.startsWith("/search");
   const isSearchOpen = !isSearchPage;
-  const [mobileSearchQuery, setMobileSearchQuery] = useState("");
   const { theme, toggleTheme } = useTheme();
   const { categories } = useProductData();
   const { totalItems, openCartDrawer } = useCart();
@@ -42,12 +39,12 @@ export default function Header() {
   const isAdminLoggedIn = mounted && verifyAdminSession();
 
   return (
-    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/80 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/80">
-      <div className="mx-auto flex h-16 max-w-7xl items-center justify-between px-4 sm:px-6 lg:px-8">
+    <header className="sticky top-0 z-50 w-full border-b border-zinc-200 bg-white/90 backdrop-blur-md dark:border-zinc-800 dark:bg-zinc-950/90">
+      <div className="mx-auto flex h-14 sm:h-16 max-w-7xl items-center justify-between px-3 sm:px-6 lg:px-8">
         {/* Logo */}
         <div className="flex items-center gap-6 xl:gap-8">
-          <Link href="/" className="flex items-center gap-2.5 font-bold text-xl tracking-tight text-zinc-900 dark:text-white shrink-0">
-            <div className="relative h-9 w-9 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
+          <Link href="/" className="flex items-center gap-2 sm:gap-2.5 font-bold text-lg sm:text-xl tracking-tight text-zinc-900 dark:text-white shrink-0">
+            <div className="relative h-8 w-8 sm:h-9 sm:w-9 overflow-hidden rounded-xl border border-zinc-200 dark:border-zinc-800 shadow-xs">
               <Image
                 src={getAssetPath("/logo.jpg")}
                 alt="Japan Shop Logo"
@@ -73,20 +70,8 @@ export default function Header() {
           </nav>
         </div>
 
-
-        {/* Right side items: Search, Cart, Theme Toggle, Admin Settings & Mobile menu */}
-        <div className="flex items-center gap-1 sm:gap-2">
-          {/* Search Icon Button */}
-          {/* <button
-            type="button"
-            onClick={() => setIsSearchOpen(!isSearchOpen)}
-            className="p-2 rounded-lg text-zinc-700 hover:text-indigo-600 hover:bg-zinc-100 dark:text-zinc-300 dark:hover:text-indigo-400 dark:hover:bg-zinc-900 cursor-pointer transition-colors"
-            title="Tìm kiếm sản phẩm"
-            aria-label="Tìm kiếm sản phẩm"
-          >
-            <SearchIcon className="h-6 w-6" />
-          </button> */}
-
+        {/* Right side items: Cart, Theme Toggle, Admin Settings & Mobile menu */}
+        <div className="flex items-center gap-0.5 sm:gap-2">
           {/* Cart Icon Button */}
           <button
             type="button"
@@ -95,9 +80,9 @@ export default function Header() {
             title="Giỏ hàng"
             aria-label="Xem giỏ hàng"
           >
-            <CartIcon className="h-6 w-6" />
+            <CartIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             {totalItems > 0 && (
-              <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white animate-in zoom-in-50 duration-200">
+              <span className="absolute top-0.5 right-0.5 flex h-4 w-4 items-center justify-center rounded-full bg-indigo-600 text-[10px] font-bold text-white animate-in zoom-in-50 duration-200">
                 {totalItems > 99 ? "99+" : totalItems}
               </span>
             )}
@@ -111,13 +96,13 @@ export default function Header() {
               aria-label="Chuyển đổi giao diện"
             >
               {theme === "light" ? (
-                <MoonIcon className="h-6 w-6" />
+                <MoonIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               ) : (
-                <SunIcon className="h-6 w-6" />
+                <SunIcon className="h-5 w-5 sm:h-6 sm:w-6" />
               )}
             </button>
           ) : (
-            <div className="h-10 w-10" />
+            <div className="h-9 w-9 sm:h-10 sm:w-10" />
           )}
 
           {/* Admin Settings Button (Only visible when Admin is logged in) */}
@@ -135,26 +120,27 @@ export default function Header() {
           {/* Mobile Menu Button */}
           <button
             onClick={() => setIsMenuOpen(!isMenuOpen)}
-            className="p-2 text-zinc-700 hover:text-indigo-600 dark:text-zinc-300 dark:hover:text-indigo-400 md:hidden cursor-pointer"
+            className="p-2 text-zinc-700 hover:text-indigo-600 dark:text-zinc-300 dark:hover:text-indigo-400 lg:hidden cursor-pointer"
+            aria-label="Mở menu"
           >
             {isMenuOpen ? (
-              <CloseIcon className="h-6 w-6" />
+              <CloseIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             ) : (
-              <MenuIcon className="h-6 w-6" />
+              <MenuIcon className="h-5 w-5 sm:h-6 sm:w-6" />
             )}
           </button>
         </div>
       </div>
 
-      {/* Live Search Dropdown */}
+      {/* Live Search Dropdown (z-30 so its popup renders cleanly over the category bar) */}
       <LiveSearchDropdown isOpen={isSearchOpen} />
 
       {/* Mobile Quick Category Bar */}
-      <div className="lg:hidden border-t border-zinc-200/70 bg-white/95 px-3 py-2 backdrop-blur-md dark:border-zinc-800/80 dark:bg-zinc-950/95 shadow-2xs overflow-x-auto scrollbar-none">
-        <div className="flex items-center gap-2 whitespace-nowrap min-w-max">
+      <div className="relative z-20 lg:hidden border-t border-zinc-200/70 bg-white/95 px-3 py-1.5 sm:py-2 dark:border-zinc-800/80 dark:bg-zinc-950/95 shadow-2xs overflow-x-auto scrollbar-none">
+        <div className="flex items-center gap-1.5 sm:gap-2 whitespace-nowrap min-w-max">
           <Link
             href="/"
-            className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+            className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold transition-all ${
               pathname === "/"
                 ? "bg-indigo-600 text-white shadow-xs"
                 : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -168,7 +154,7 @@ export default function Header() {
               <Link
                 key={category.id || category.name}
                 href={`/category/${category.id}`}
-                className={`inline-flex items-center px-3 py-1.5 rounded-full text-xs font-semibold transition-all ${
+                className={`inline-flex items-center px-3 py-1 rounded-full text-xs font-semibold transition-all ${
                   isActive
                     ? "bg-indigo-600 text-white shadow-xs"
                     : "bg-zinc-100 text-zinc-700 hover:bg-zinc-200 dark:bg-zinc-900 dark:text-zinc-300 dark:hover:bg-zinc-800"
@@ -183,31 +169,8 @@ export default function Header() {
 
       {/* Mobile Menu */}
       {isMenuOpen && (
-        <div className="border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 lg:hidden shadow-xl animate-in slide-in-from-top-2 duration-200">
+        <div className="relative z-40 border-t border-zinc-200 bg-white dark:border-zinc-800 dark:bg-zinc-950 lg:hidden shadow-xl animate-in slide-in-from-top-2 duration-200">
           <div className="mx-auto max-w-7xl px-4 py-4 space-y-4">
-            {/* Mobile Search */}
-            <form
-              onSubmit={(e) => {
-                e.preventDefault();
-                if (mobileSearchQuery.trim()) {
-                  setIsMenuOpen(false);
-                  router.push(`/search?q=${encodeURIComponent(mobileSearchQuery.trim())}`);
-                }
-              }}
-              className="relative flex items-center"
-            >
-              <input
-                type="text"
-                placeholder="Tìm kiếm sản phẩm nội địa Nhật..."
-                value={mobileSearchQuery}
-                onChange={(e) => setMobileSearchQuery(e.target.value)}
-                className="w-full rounded-xl border border-zinc-200 bg-zinc-50 py-2 pl-4 pr-10 text-sm outline-none dark:border-zinc-800 dark:bg-zinc-900 focus:border-indigo-500"
-              />
-              <button type="submit" className="absolute right-3 text-zinc-400">
-                <SearchIcon className="h-4 w-4" />
-              </button>
-            </form>
-
             {/* Categories */}
             <div>
               <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 dark:text-zinc-500 block px-3 mb-1">
@@ -280,8 +243,6 @@ export default function Header() {
           </div>
         </div>
       )}
-
     </header>
   );
 }
-

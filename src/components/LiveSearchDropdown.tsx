@@ -45,10 +45,15 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
   const inputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
 
-  // Load recent searches on mount / when opened
+  // Load recent searches on mount / when opened (do NOT auto-focus to avoid popping open dropdown on page load)
   useEffect(() => {
     if (isOpen) {
       setRecentSearches(getRecentSearches());
+    } else {
+      setQuery("");
+      setDebouncedQuery("");
+      setSelectedIndex(-1);
+      setIsOpenResults(false);
     }
   }, [isOpen]);
 
@@ -72,31 +77,20 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
     return () => clearTimeout(timer);
   }, [query]);
 
-  // Focus input when opened
+  // Close suggestion dropdown on outside click or touch
   useEffect(() => {
-    if (isOpen) {
-      setTimeout(() => inputRef.current?.focus(), 50);
-      setRecentSearches(getRecentSearches());
-    } else {
-      setQuery("");
-      setDebouncedQuery("");
-      setSelectedIndex(-1);
-      setIsOpenResults(false);
-    }
-  }, [isOpen]);
-
-  // Close suggestion dropdown on outside click
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
+    const handleClickOutside = (e: MouseEvent | TouchEvent) => {
       if (dropdownRef.current && !dropdownRef.current.contains(e.target as Node)) {
         setIsOpenResults(false);
       }
     };
     if (isOpen) {
       document.addEventListener("mousedown", handleClickOutside);
+      document.addEventListener("touchstart", handleClickOutside, { passive: true });
     }
     return () => {
       document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("touchstart", handleClickOutside);
     };
   }, [isOpen]);
 
@@ -172,7 +166,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
   return (
     <div
       ref={dropdownRef}
-      className={`border-t border-zinc-200 bg-white/95 backdrop-blur-md px-4 py-3 dark:border-zinc-800 dark:bg-zinc-950/95 shadow-lg animate-in fade-in duration-150 ${className}`}
+      className={`relative z-30 border-t border-zinc-200 bg-white/95 backdrop-blur-md px-3 py-2 sm:px-4 sm:py-2.5 dark:border-zinc-800 dark:bg-zinc-950/95 ${className}`}
     >
       <div className="mx-auto max-w-2xl relative">
         {/* Search Input Box */}
@@ -180,7 +174,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
           <input
             ref={inputRef}
             type="text"
-            placeholder="Tìm theo tên sản phẩm, công dụng, thành phần (hỗ trợ gõ không dấu)..."
+            placeholder="Tìm theo tên sản phẩm, công dụng, thành phần..."
             value={query}
             onFocus={() => setIsOpenResults(true)}
             onChange={(e) => {
@@ -188,7 +182,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
               setSelectedIndex(-1);
             }}
             onKeyDown={handleKeyDown}
-            className="w-full rounded-2xl border border-zinc-200 bg-zinc-50 py-2.5 pl-4 pr-16 text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
+            className="w-full rounded-xl sm:rounded-2xl border border-zinc-200 bg-zinc-50 py-2 sm:py-2.5 pl-3.5 pr-14 text-xs sm:text-sm outline-none transition-all focus:border-indigo-500 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 dark:border-zinc-800 dark:bg-zinc-900 dark:focus:border-indigo-400 dark:focus:bg-zinc-950"
           />
           <div className="absolute right-2 flex items-center gap-1">
             {query && (
@@ -217,9 +211,9 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
 
         {/* Live Dropdown: Khi có từ khóa */}
         {isOpenResults && debouncedQuery && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white/98 backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900/98 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 overflow-hidden animate-in fade-in slide-in-from-top-1 duration-150">
             {searchResults.length === 0 ? (
-              <div className="p-6 text-center space-y-2">
+              <div className="p-5 sm:p-6 text-center space-y-2">
                 <p className="text-sm font-semibold text-zinc-700 dark:text-zinc-300">
                   Không tìm thấy sản phẩm nào cho &quot;{debouncedQuery}&quot;
                 </p>
@@ -243,9 +237,9 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
               <div>
                 <div className="px-4 py-2 text-[11px] font-bold uppercase tracking-wider text-zinc-400 border-b border-zinc-100 dark:border-zinc-800 flex justify-between items-center">
                   <span>Sản phẩm phù hợp ({searchResults.length})</span>
-                  <span className="text-[10px] text-zinc-400">Dùng ↑ ↓ để chọn, Enter để xem</span>
+                  <span className="hidden sm:inline text-[10px] text-zinc-400">Dùng ↑ ↓ để chọn, Enter để xem</span>
                 </div>
-                <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[380px] overflow-y-auto">
+                <div className="divide-y divide-zinc-100 dark:divide-zinc-800 max-h-[60vh] sm:max-h-[380px] overflow-y-auto">
                   {searchResults.map((match, idx) => {
                     const product = match.product;
                     const imgUrl = product.images?.[0] || "/logo.jpg";
@@ -263,14 +257,14 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                           handleCloseDropdown(true);
                         }}
                         onMouseEnter={() => setSelectedIndex(idx)}
-                        className={`flex items-center gap-3.5 p-3 transition-colors ${
+                        className={`flex items-center gap-3 p-2.5 sm:p-3 transition-colors ${
                           isSelected
                             ? "bg-indigo-50/80 dark:bg-indigo-950/40"
                             : "hover:bg-zinc-50 dark:hover:bg-zinc-800/50"
                         }`}
                       >
                         {/* Thumbnail */}
-                        <div className="relative h-12 w-12 shrink-0 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800">
+                        <div className="relative h-11 w-11 sm:h-12 sm:w-12 shrink-0 rounded-xl overflow-hidden border border-zinc-200 dark:border-zinc-800 bg-zinc-50 dark:bg-zinc-800">
                           <Image
                             src={getAssetPath(imgUrl)}
                             alt={product.name}
@@ -284,12 +278,12 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-1.5">
                             {catName && (
-                              <span className="rounded-md bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-400">
+                              <span className="rounded-md bg-zinc-100 dark:bg-zinc-800 px-1.5 py-0.5 text-[10px] font-medium text-zinc-600 dark:text-zinc-400 truncate">
                                 {catName}
                               </span>
                             )}
                             {match.matchedIn !== "name" && (
-                              <span className="rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400">
+                              <span className="rounded-md bg-amber-50 dark:bg-amber-950/60 border border-amber-200 dark:border-amber-800 px-1.5 py-0.5 text-[9px] font-bold text-amber-700 dark:text-amber-400 shrink-0">
                                 {match.matchedIn === "tag" ? "Khớp nhãn" : "Khớp công dụng"}
                               </span>
                             )}
@@ -298,7 +292,6 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                             {product.name}
                           </p>
 
-                          {/* Snippet giải thích lý do khớp nếu có */}
                           {match.snippet && (
                             <p className="text-[11px] text-zinc-500 dark:text-zinc-400 truncate italic mt-0.5">
                               💬 {match.snippet}
@@ -338,7 +331,7 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
 
         {/* Live Dropdown: Khi ô tìm kiếm trống (Gợi ý lịch sử & từ khóa thịnh hành) */}
         {isOpenResults && !debouncedQuery && (
-          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white/98 backdrop-blur-md shadow-2xl dark:border-zinc-800 dark:bg-zinc-900/98 p-4 space-y-4 animate-in fade-in slide-in-from-top-1 duration-150">
+          <div className="absolute top-full left-0 right-0 mt-2 z-50 rounded-2xl border border-zinc-200 bg-white shadow-2xl dark:border-zinc-800 dark:bg-zinc-900 p-3.5 sm:p-4 space-y-3.5 animate-in fade-in slide-in-from-top-1 duration-150">
             {/* Lịch sử tìm kiếm gần đây */}
             {recentSearches.length > 0 && (
               <div>
@@ -354,13 +347,13 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
                     Xóa lịch sử
                   </button>
                 </div>
-                <div className="flex flex-wrap gap-2">
+                <div className="flex flex-wrap gap-1.5 sm:gap-2">
                   {recentSearches.map((keyword) => (
                     <button
                       key={keyword}
                       type="button"
                       onClick={() => handleSelectRecentOrPopular(keyword)}
-                      className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                      className="inline-flex items-center gap-1.5 px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold bg-zinc-100 dark:bg-zinc-800 hover:bg-indigo-50 hover:text-indigo-600 dark:hover:bg-indigo-950 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
                     >
                       <span>🔍</span>
                       <span>{keyword}</span>
@@ -372,16 +365,25 @@ export default function LiveSearchDropdown({ isOpen, onClose, className = "" }: 
 
             {/* Từ khóa thịnh hành */}
             <div>
-              <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400 block mb-2">
-                🔥 Gợi ý từ khóa hot
-              </span>
-              <div className="flex flex-wrap gap-2">
+              <div className="flex items-center justify-between mb-2">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-zinc-400">
+                  🔥 Gợi ý từ khóa hot
+                </span>
+                <button
+                  type="button"
+                  onClick={() => setIsOpenResults(false)}
+                  className="text-[11px] text-zinc-400 hover:text-zinc-600 dark:hover:text-zinc-200 cursor-pointer"
+                >
+                  Đóng ✕
+                </button>
+              </div>
+              <div className="flex flex-wrap gap-1.5 sm:gap-2">
                 {POPULAR_SEARCH_TAGS.map((tag) => (
                   <button
                     key={tag}
                     type="button"
                     onClick={() => handleSelectRecentOrPopular(tag)}
-                    className="px-3 py-1.5 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-indigo-500 hover:text-indigo-600 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
+                    className="px-2.5 py-1 sm:px-3 sm:py-1.5 rounded-xl text-xs font-semibold border border-zinc-200 dark:border-zinc-700 bg-white dark:bg-zinc-900 hover:border-indigo-500 hover:text-indigo-600 text-zinc-700 dark:text-zinc-300 transition-all cursor-pointer"
                   >
                     {tag}
                   </button>
