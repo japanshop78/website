@@ -23,10 +23,19 @@ const baseUrl = getSiteUrl();
 export const metadata: Metadata = {
   metadataBase: new URL(baseUrl),
   title: {
-    default: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
-    template: "%s | Japan Shop",
+    default: "Đồ Nội Địa Nhật 100% - Japan Shop | Hàng Nhật Chính Hãng",
+    template: "%s | Đồ Nội Địa Nhật 100% - Japan Shop",
   },
-  description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+  description: "Đồ Nội Địa Nhật 100% (Japan Shop) - Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+  keywords: [
+    "đồ nội địa nhật",
+    "đồ nội địa nhật 100",
+    "hàng nội địa nhật",
+    "mỹ phẩm nội địa nhật",
+    "thực phẩm chức năng nhật bản",
+    "japan shop",
+    "donoidianhat100",
+  ],
   referrer: "no-referrer",
   verification: {
     google: process.env.NEXT_PUBLIC_GOOGLE_SITE_VERIFICATION,
@@ -35,10 +44,10 @@ export const metadata: Metadata = {
     canonical: "./",
   },
   openGraph: {
-    title: "Japan Shop - Hàng Nội Địa Nhật Bản Chính Hãng",
-    description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+    title: "Đồ Nội Địa Nhật 100% - Japan Shop | Hàng Nhật Chính Hãng",
+    description: "Đồ Nội Địa Nhật 100% (Japan Shop) - Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
     url: baseUrl,
-    siteName: "Japan Shop",
+    siteName: "Đồ Nội Địa Nhật 100% - Japan Shop",
     locale: "vi_VN",
     type: "website",
     images: [
@@ -46,7 +55,7 @@ export const metadata: Metadata = {
         url: `${baseUrl}/logo.jpg`,
         width: 600,
         height: 600,
-        alt: "Japan Shop Logo",
+        alt: "Đồ Nội Địa Nhật 100% - Japan Shop Logo",
       },
     ],
   },
@@ -55,10 +64,11 @@ export const metadata: Metadata = {
 const organizationSchema = {
   "@context": "https://schema.org",
   "@type": "Organization",
-  name: "Japan Shop",
+  name: "Đồ Nội Địa Nhật 100% - Japan Shop",
+  alternateName: "Japan Shop",
   url: baseUrl,
   logo: `${baseUrl}/logo.jpg`,
-  description: "Chuyên cung cấp mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng nội địa Nhật Bản chất lượng cao.",
+  description: "Chuyên cung cấp đồ nội địa Nhật 100%: mỹ phẩm, thực phẩm chức năng, đồ dùng mẹ và bé chính hãng Nhật Bản.",
   telephone: "+84902493895",
   contactPoint: {
     "@type": "ContactPoint",
@@ -72,7 +82,8 @@ const organizationSchema = {
 const webSiteSchema = {
   "@context": "https://schema.org",
   "@type": "WebSite",
-  name: "Japan Shop",
+  name: "Đồ Nội Địa Nhật 100% - Japan Shop",
+  alternateName: "Japan Shop",
   url: baseUrl,
   potentialAction: {
     "@type": "SearchAction",
